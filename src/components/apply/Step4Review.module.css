@@ -1,0 +1,52 @@
+/* components/apply/Step4Review.module.css */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.blockTitle {
+  font-weight: 800;
+  color: var(--green);
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: .9rem;
+}
+.row:last-child { border-bottom: none; }
+
+.rowLabel {
+  font-weight: 700;
+  color: var(--gray-500);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.rowValue { color: var(--gray-900); }
+
+.docsBlock { margin-bottom: 8px; }
+
+.docTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+}

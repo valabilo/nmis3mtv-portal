@@ -1,0 +1,148 @@
+/* components/home/HeroSection.module.css */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.heroImage {
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(10, 32, 22, .9) 0%, rgba(10, 32, 22, .72) 34%, rgba(10, 32, 22, .28) 68%, rgba(10, 32, 22, .16) 100%),
+    linear-gradient(180deg, rgba(18, 58, 40, .22), rgba(18, 58, 40, .48)),
+    linear-gradient(180deg, rgba(255,255,255,.08), transparent 28%, rgba(0,0,0,.18));
+  z-index: 1;
+}
+
+.inner {
+  display: flex;
+  min-height: 620px;
+  padding: 86px 0 78px;
+  position: relative;
+  z-index: 1;
+}
+
+/* .copy {
+  background: rgba(10, 32, 22, .24);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.2);
+  max-width: 560px;
+  padding: 28px 30px;
+  backdrop-filter: blur(4px);
+} */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: .82rem;
+  color: var(--gold-lt);
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+
+.title {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  font-weight: 900;
+  color: var(--white);
+  line-height: 1.05;
+  margin-bottom: 10px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.92);
+  margin-bottom: 14px;
+}
+
+.copy > p {
+  color: rgba(255,255,255,.82);
+  font-size: .97rem;
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 28px;
+}
+
+.actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.btnOutlineWhite {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--radius);
+  font-family: var(--font-public-sans), sans-serif;
+  font-weight: 700;
+  font-size: .93rem;
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,.6);
+  color: var(--white);
+  text-decoration: none;
+  transition: var(--transition);
+  background: transparent;
+}
+.btnOutlineWhite:hover { background: rgba(255,255,255,.1); }
+
+@media (max-width: 768px) {
+  .inner {
+    min-height: 520px;
+    padding: 52px 0 46px;
+  }
+
+  .title {
+    font-size: clamp(1.9rem, 10vw, 2.8rem);
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .copy {
+    max-width: 100%;
+    padding: 34px 28px;
+  }
+
+  .copy > p {
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions a {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .heroImage {
+    object-position: 72% center;
+  }
+
+  .inner {
+    min-height: 460px;
+    padding: 38px 0 34px;
+  }
+
+  .copy {
+    padding: 30px 22px;
+  }
+}

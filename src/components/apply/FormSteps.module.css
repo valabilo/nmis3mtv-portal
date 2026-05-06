@@ -1,0 +1,22 @@
+/* components/apply/FormSteps.module.css
+   Shared styles used by Step1–Step4 components.
+*/
+
+.body {
+  padding: 32px 28px;
+}
+
+.sectionTitle {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--green);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .body { padding: 20px 16px; }
+}

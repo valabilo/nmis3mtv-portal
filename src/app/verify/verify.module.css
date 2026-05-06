@@ -1,0 +1,72 @@
+.page {
+  padding: 42px 0 62px;
+}
+
+.overview {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+  margin-bottom: 24px;
+  padding: 28px;
+}
+
+.kicker {
+  color: var(--gold);
+  display: block;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .8px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.overview h2 {
+  color: var(--green-deep);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+
+.overview p {
+  color: var(--gray-700);
+  font-size: .95rem;
+  line-height: 1.65;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.summaryGrid div {
+  background: var(--green-pale);
+  border: 1px solid rgba(26, 92, 50, .14);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.summaryGrid span {
+  color: var(--gray-500);
+  display: block;
+  font-size: .78rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.summaryGrid strong {
+  color: var(--green-deep);
+  display: block;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 780px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
+}

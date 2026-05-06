@@ -1,0 +1,93 @@
+/* components/apply/FormProgress.module.css */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 32px;
+  border-bottom: 1px solid var(--gray-100);
+  background: linear-gradient(180deg, var(--white), var(--gray-50));
+}
+
+.stepGroup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gray-500);
+  transition: var(--transition);
+}
+
+.num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--gray-200);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  font-size: .9rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.label {
+  font-size: .86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.line {
+  width: 72px;
+  height: 2px;
+  margin: 0 14px;
+  background: var(--gray-200);
+  flex: 0 0 72px;
+  transition: var(--transition);
+}
+
+.done,
+.active {
+  color: var(--green);
+}
+
+.done .num {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+}
+
+.active .num {
+  border-color: var(--green);
+  box-shadow: 0 0 0 5px rgba(26, 92, 50, .15);
+}
+
+.done + .line {
+  background: var(--green);
+}
+
+@media (max-width: 768px) {
+  .bar {
+    justify-content: flex-start;
+    padding: 22px 18px;
+    overflow-x: auto;
+  }
+
+  .label {
+    display: none;
+  }
+
+  .line {
+    width: 38px;
+    flex-basis: 38px;
+    margin: 0 10px;
+  }
+}

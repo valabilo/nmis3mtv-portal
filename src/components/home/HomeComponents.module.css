@@ -1,0 +1,380 @@
+.section {
+  padding: 64px 0;
+}
+
+.sectionHeading {
+  max-width: 680px;
+  margin: 0 auto 30px;
+  text-align: center;
+}
+
+.sectionHeading span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--green-pale);
+  color: var(--green);
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sectionHeading h2 {
+  margin: 12px 0 8px;
+  color: var(--green-deep);
+  font-size: clamp(1.7rem, 3vw, 2.25rem);
+  font-weight: 900;
+}
+
+.sectionHeading p {
+  color: var(--gray-500);
+  font-size: .98rem;
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  padding: 24px;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.actionCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--green-lt);
+  box-shadow: var(--shadow-md);
+}
+
+.actionIcon,
+.infoBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--green);
+  color: var(--white);
+  font-size: .86rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.actionCard h3 {
+  margin: 18px 0 8px;
+  color: var(--green-deep);
+  font-size: 1.18rem;
+  font-weight: 900;
+}
+
+.actionCard p {
+  color: var(--gray-700);
+  font-size: .94rem;
+}
+
+.cardLink {
+  margin-top: auto;
+  color: var(--green);
+  font-size: .9rem;
+  font-weight: 900;
+}
+
+.processSection {
+  padding: 64px 0;
+  background: var(--gray-100);
+}
+
+.processGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.processStep {
+  position: relative;
+  min-height: 210px;
+  padding: 24px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.processStep:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: -35px;
+  top: 50%;
+  z-index: 2;
+  width: 42px;
+  height: 26px;
+  background: var(--green);
+  clip-path: polygon(0 28%, 58% 28%, 58% 0, 100% 50%, 58% 100%, 58% 72%, 0 72%);
+  transform: translateY(-50%);
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--white);
+  font-weight: 900;
+  margin-bottom: 18px;
+}
+
+.processStep h3 {
+  color: var(--green-deep);
+  font-size: 1.08rem;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.processStep p {
+  color: var(--gray-700);
+  font-size: .92rem;
+}
+
+.ctaStrip {
+  padding: 34px 0;
+  background: linear-gradient(90deg, var(--green-deep), var(--green));
+}
+
+.ctaInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ctaLabel {
+  color: var(--gold-lt);
+  font-size: .8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ctaInner h2 {
+  color: var(--white);
+  font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+  margin: 6px 0 4px;
+}
+
+.ctaInner p {
+  color: rgba(255,255,255,.78);
+  font-size: .95rem;
+}
+
+.ctaButton {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--green);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  gap: 18px;
+}
+
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 245px;
+  padding: 24px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-100);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.infoHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.infoHeader h3 {
+  color: var(--green-deep);
+  font-size: 1.12rem;
+  font-weight: 900;
+}
+
+.dangerBadge {
+  background: var(--red);
+}
+
+.helpBadge {
+  background: var(--blue);
+}
+
+.infoCard p,
+.checkList li {
+  color: var(--gray-700);
+  font-size: .92rem;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.checkList li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.checkList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .45em;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.secondaryLink,
+.dangerLink {
+  margin-top: auto;
+  color: var(--green);
+  font-size: .9rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.dangerLink {
+  color: var(--red);
+}
+
+.contactBand {
+  padding: 44px 0;
+  background: var(--green-pale);
+  border-top: 1px solid var(--gray-200);
+}
+
+.contactGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+.contactGrid > div {
+  padding: 24px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  box-shadow: var(--shadow-sm);
+}
+
+.contactGrid h2 {
+  color: var(--green-deep);
+  font-size: 1.12rem;
+  font-weight: 900;
+  margin-bottom: 16px;
+}
+
+.contactRows {
+  display: grid;
+  gap: 10px;
+}
+
+.contactRow {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  color: var(--gray-700);
+  font-size: .92rem;
+}
+
+.contactRow strong {
+  color: var(--green);
+}
+
+@media (max-width: 900px) {
+  .quickGrid,
+  .processGrid,
+  .infoGrid,
+  .contactGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionCard,
+  .processStep,
+  .infoCard {
+    min-height: 0;
+  }
+
+  .processGrid {
+    gap: 42px;
+  }
+
+  .processStep:not(:last-child)::after {
+    bottom: -34px;
+    right: 50%;
+    top: auto;
+    transform: translateX(50%) rotate(90deg);
+  }
+
+  .ctaInner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .section,
+  .processSection {
+    padding: 44px 0;
+  }
+
+  .sectionHeading {
+    margin-bottom: 22px;
+  }
+
+  .actionCard,
+  .processStep,
+  .infoCard,
+  .contactGrid > div {
+    padding: 20px;
+  }
+
+  .ctaButton {
+    width: 100%;
+  }
+
+  .contactRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

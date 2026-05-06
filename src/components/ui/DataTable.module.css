@@ -1,0 +1,89 @@
+/* components/ui/DataTable.module.css */
+
+.wrap {
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tableTitle {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--gray-900);
+  margin: 0;
+}
+
+.searchWrap input {
+  padding: 8px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .88rem;
+  outline: none;
+  width: 220px;
+}
+.searchWrap input:focus { border-color: var(--green); }
+
+.tableScroll { overflow-x: auto; }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paginationInfo { font-size: .85rem; color: var(--gray-500); }
+
+.paginationBtns { display: flex; gap: 6px; }
+
+.pageBtn {
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; font-weight: 700;
+  transition: var(--transition);
+  font-family: var(--font-public-sans), sans-serif;
+}
+.pageBtn:hover, .pageBtnActive {
+  background: var(--green);
+  color: var(--white);
+  border-color: var(--green);
+}
+
+@media (max-width: 640px) {
+  .toolbar,
+  .pagination {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .searchWrap,
+  .searchWrap input {
+    width: 100%;
+  }
+
+  .wrap :global(thead th),
+  .wrap :global(tbody td) {
+    padding: 10px 12px;
+  }
+}

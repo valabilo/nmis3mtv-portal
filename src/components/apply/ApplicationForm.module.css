@@ -1,0 +1,48 @@
+/* components/apply/ApplicationForm.module.css */
+
+.container {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.optimistic {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 20px 28px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(26, 92, 50, .18);
+  border-radius: 8px;
+  background: var(--green-pale);
+  color: var(--green);
+}
+
+.optimistic p {
+  margin-top: 2px;
+  font-size: .86rem;
+  color: var(--gray-700);
+}
+
+.optimisticSpinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba(26, 92, 50, .18);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .optimistic {
+    align-items: flex-start;
+    margin: 16px 16px 0;
+    padding: 12px 14px;
+  }
+}

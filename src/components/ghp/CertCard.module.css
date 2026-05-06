@@ -1,0 +1,379 @@
+/* components/ghp/CertCard.module.css */
+
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, #1a5276, #2874a6);
+  padding: 20px 28px;
+  display: flex; align-items: center; gap: 14px;
+}
+.headerIcon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; flex-shrink: 0;
+}
+.headerText h3 {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1.35rem; font-weight: 800; color: var(--white);
+}
+.headerText p { font-size: .85rem; color: rgba(255,255,255,.75); margin-top: 2px; }
+
+/* ── Body ── */
+.body { padding: 28px; }
+
+.lockedMsg {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--gray-100); border-radius: 8px;
+  padding: 14px 18px; font-size: .9rem;
+  color: var(--gray-500); font-weight: 700;
+}
+
+.intro { font-size: .7rem; color: var(--gray-700); margin-bottom: 20px; line-height: 1.5; }
+
+/* Score preview pill */
+.scorePreview {
+  display: flex; align-items: center; gap: 10px;
+  background: #d1fae5; border-radius: 8px;
+  padding: 12px 16px;
+  font-size: .92rem; color: #065f46;
+  margin-bottom: 24px;
+}
+
+/* Form */
+.formGroup { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+.formGroup label { font-size: .87rem; font-weight: 700; color: var(--gray-700); }
+.formGroup input {
+  padding: 10px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .92rem;
+  color: var(--gray-900);
+  transition: var(--transition);
+  outline: none;
+}
+.formGroup input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,82,118,.1); }
+.formGroup input:disabled { background: var(--gray-50); cursor: not-allowed; }
+.hint { font-size: .78rem; color: var(--gray-500); }
+
+/* Certificate preview */
+.certPreview {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.ribbonTop,
+.ribbonBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 58px;
+  pointer-events: none;
+}
+
+.ribbonTop {
+  top: 0;
+  background:
+    linear-gradient(168deg, transparent 0 63%, #f5bd20 64% 70%, #62ad45 71% 78%, #006b3f 79% 100%);
+  transform: scaleX(-1);
+  transform-origin: center;
+}
+
+.ribbonBottom {
+  bottom: 0;
+  background:
+    linear-gradient(168deg, transparent 0 56%, #f5bd20 57% 64%, #62ad45 65% 73%, #006b3f 74% 100%);
+}
+
+.certPreviewBody {
+  position: relative;
+  z-index: 1;
+  min-height: 470px;
+  padding: 28px 30px 34px;
+  text-align: center;
+  color: #111;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.35;
+}
+
+.certAgency {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 560px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.certAgency img {
+  width: 118px;
+  height: 118px;
+  object-fit: contain;
+}
+
+.certAgency p,
+.certAgency strong {
+  display: block;
+  margin: 0;
+  color: #111;
+  font-size: .82rem;
+  line-height: 1.25;
+}
+
+.certAgency strong {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.certPreviewBody h4 {
+  margin: 14px 0 18px;
+  color: #111;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.givenText {
+  margin: 0 0 28px;
+  color: #111;
+  font-size: .92rem;
+}
+
+.certMain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  gap: 24px;
+  align-items: center;
+}
+
+.certCopy {
+  text-align: center;
+}
+
+.certCopy p {
+  margin: 12px 0 0;
+  color: #111;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
+.certCopy b {
+  color: #234f1f;
+}
+
+.certName {
+  display: block;
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: 0 18px 3px;
+  border-bottom: 1px solid #777;
+  color: #23551f;
+  font-size: clamp(1.45rem, 4vw, 2.25rem);
+  font-weight: 900;
+  line-height: 1.15;
+  min-height: 1.2em;
+}
+
+.validityText {
+  max-width: 620px;
+  margin: 34px auto 0 !important;
+}
+
+.qrMock span {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 5px solid #111;
+  background: #fff;
+}
+
+.qrMock span:nth-child(1) { top: 7px; left: 7px; }
+.qrMock span:nth-child(2) { top: 7px; right: 7px; }
+.qrMock span:nth-child(3) { bottom: 7px; left: 7px; }
+
+.qrBlock p {
+  margin: 0;
+  color: #666;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .75rem;
+}
+
+.certFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 24px;
+  align-items: end;
+  margin-top: 48px;
+  text-align: left;
+}
+
+.signatureBlock {
+  text-align: center;
+}
+
+.signatureBlock strong {
+  display: block;
+  color: #111;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .98rem;
+  font-weight: 900;
+}
+
+.signatureBlock p {
+  margin: 2px 0 0;
+  color: #111;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .72rem;
+}
+
+.controlBlock {
+  text-align: center;
+}
+
+.controlBlock strong {
+  display: block;
+  color: #555;
+  font-size: 1.18rem;
+  font-weight: 900;
+}
+
+.controlBlock p {
+  margin: 2px 0;
+  color: #b82020;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: .9rem;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.controlBlock span {
+  color: #555;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .62rem;
+}
+
+@media (max-width: 720px) {
+  .certPreviewBody {
+    min-height: 0;
+    padding: 24px 18px 30px;
+  }
+
+  .certAgency {
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .certAgency img {
+    width: 92px;
+    height: 92px;
+  }
+
+  .certPreviewBody h4 {
+    letter-spacing: .14em;
+  }
+
+  .certMain,
+  .certFooter {
+    grid-template-columns: 1fr;
+  }
+
+  .qrBlock {
+    order: -1;
+  }
+
+  .certFooter {
+    margin-top: 34px;
+    text-align: center;
+  }
+}
+
+.actions { display: flex; justify-content: flex-end; }
+
+/* ── Success state ── */
+.successBox {
+  text-align: center;
+  padding: 8px 0;
+}
+.successIcon { font-size: 3.5rem; margin-bottom: 12px; }
+.successBox h4 {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1.6rem; font-weight: 800; color: var(--green);
+  margin-bottom: 8px;
+}
+.successBox p { font-size: .92rem; color: var(--gray-700); margin-bottom: 4px; }
+
+.certDetails {
+  background: var(--green-pale);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  text-align: left;
+}
+.certRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(26,92,50,.1);
+  font-size: .9rem;
+}
+.certRow:last-child { border-bottom: none; }
+.certRow span  { color: var(--gray-500); }
+.certRow strong { color: var(--green); }
+
+.note {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: .85rem;
+  color: #92400e;
+  line-height: 1.6;
+  margin-top: 8px;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .header,
+  .body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions :global(.btn) {
+    width: 100%;
+  }
+
+  .certRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+}

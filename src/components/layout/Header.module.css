@@ -1,0 +1,328 @@
+/* components/layout/Header.module.css */
+
+.header {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 34%),
+    linear-gradient(90deg, var(--green-deep), var(--green));
+  box-shadow: 0 12px 34px rgba(18, 58, 40, .18);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.headerTop {
+  align-items: center;
+  display: flex;
+  gap: 22px;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.logo {
+  align-items: center;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.16);
+  display: flex;
+  flex-shrink: 0;
+  height: 58px;
+  justify-content: center;
+  overflow: hidden;
+  width: 58px;
+}
+
+.logo img {
+  display: block;
+  height: 54px;
+  object-fit: contain;
+  width: 54px;
+}
+
+.brandText {
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.republic {
+  color: rgba(255,255,255,.74);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+
+.agency {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: clamp(.98rem, 1.5vw, 1.18rem);
+  font-weight: 900;
+}
+
+.region {
+  color: rgba(255,255,255,.78);
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.searchForm {
+  align-items: center;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  display: flex;
+  height: 42px;
+  min-width: min(520px, 50vw);
+  overflow: hidden;
+}
+
+.searchForm select,
+.searchForm input {
+  background: transparent;
+  border: none;
+  color: var(--gray-900);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .9rem;
+  height: 100%;
+  outline: none;
+  padding: 0 14px;
+}
+
+.searchForm select {
+  border-right: 1px solid var(--gray-200);
+  cursor: pointer;
+  font-weight: 800;
+  width: 160px;
+}
+
+.searchForm input {
+  flex: 1;
+  width: 220px;
+}
+
+.searchForm input::placeholder {
+  color: var(--gray-500);
+}
+
+.searchForm button {
+  background: var(--gold);
+  border: none;
+  color: var(--green-deep);
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 800;
+  height: 100%;
+  padding: 0 18px;
+  transition: var(--transition);
+}
+
+.searchForm button:hover {
+  filter: brightness(1.06);
+}
+
+.menuButton {
+  align-items: center;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 8px;
+  color: var(--green-deep);
+  cursor: pointer;
+  display: none;
+  flex: 0 0 auto;
+  height: 42px;
+  justify-content: center;
+  transition: var(--transition);
+  width: 42px;
+}
+
+.menuButton:hover {
+  background: var(--green-pale);
+}
+
+.menuButton svg {
+  height: 24px;
+  width: 24px;
+}
+
+.nav {
+  background: rgba(12, 45, 30, .96);
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+
+.navInner {
+  align-items: stretch;
+  display: flex;
+}
+
+.navList {
+  align-items: stretch;
+  display: flex;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.navList::-webkit-scrollbar {
+  display: none;
+}
+
+.navList li {
+  display: flex;
+}
+
+.navLink,
+.navLinkActive {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0;
+  color: rgba(255,255,255,.82);
+  display: flex;
+  font-size: .88rem;
+  font-weight: 600;
+  gap: 6px;
+  height: 100%;
+  padding: 10px 14px;
+  text-decoration: none;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.navLink:hover {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.15);
+  color: var(--white);
+}
+
+.navLinkActive {
+  box-shadow: inset 0 -3px 0 var(--gold);
+  color: var(--white);
+}
+
+@media (max-width: 980px) {
+  .headerTop {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .searchForm {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .navInner {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .headerTop {
+    align-items: center;
+    flex-direction: row;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 12px 0;
+  }
+
+  .searchForm {
+    display: none;
+  }
+
+  .menuButton {
+    display: inline-flex;
+  }
+
+  .logo {
+    height: 50px;
+    width: 50px;
+  }
+
+  .logo img {
+    height: 46px;
+    width: 46px;
+  }
+
+  .agency {
+    font-size: .96rem;
+  }
+
+  .republic,
+  .region {
+    font-size: .72rem;
+  }
+
+  .navLink,
+  .navLinkActive {
+    font-size: .82rem;
+    padding: 12px 11px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .navOpen {
+    display: block;
+  }
+
+  .navInner {
+    overflow-x: visible;
+  }
+
+  .navList {
+    flex-direction: column;
+    overflow: visible;
+    padding: 8px 0;
+    width: 100%;
+  }
+
+  .navList li {
+    width: 100%;
+  }
+
+  .navLink,
+  .navLinkActive {
+    border-radius: 8px;
+    justify-content: flex-start;
+    padding: 13px 14px;
+    width: 100%;
+  }
+
+  .navLinkActive {
+    background: rgba(255,255,255,.12);
+    box-shadow: inset 3px 0 0 var(--gold);
+  }
+}
+
+@media (max-width: 520px) {
+  .brand {
+    gap: 10px;
+  }
+
+  .logo {
+    height: 44px;
+    width: 44px;
+  }
+
+  .logo img {
+    height: 40px;
+    width: 40px;
+  }
+
+  .agency {
+    font-size: .88rem;
+  }
+}

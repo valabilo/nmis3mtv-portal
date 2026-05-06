@@ -1,0 +1,49 @@
+# Sample Google Sheets Data
+
+## Quiz_Questions Tab
+Copy this data into your Google Sheet:
+
+```
+id	question	option1	option2	option3	option4	correct_index
+1	What is the minimum temperature requirement for chilled meat transport?	0°C to 4°C	0°C to 7°C	-5°C to 0°C	5°C to 10°C	1
+2	How often must meat transport vehicles be cleaned and sanitized?	Weekly	Monthly	After every use / before loading	Only when visibly dirty	2
+3	Which of the following is NOT allowed inside an MTV cargo area?	Stainless steel hooks	Non-food items and chemicals	Plastic crates with lids	Ice packs	1
+4	Who is responsible for ensuring meat hygiene during transport?	NMIS inspector only	Slaughterhouse staff	The accredited MTV operator/driver	The buyer	2
+5	What document must be carried by the MTV driver at all times during transport?	Barangay clearance	Mayor's permit	Certificate of Registration (COR)	Health certificate	2
+```
+
+## Quiz_Config Tab
+```
+key	value
+pass_threshold	0.7
+total_questions	5
+```
+
+## Expected Headers for Other Tabs
+
+### Quiz_Attempts Tab (auto-populated)
+```
+attempt_id	timestamp	name	email	score	total_questions	pct	status	cert_number	completed_at
+```
+
+### GHP_Completions Tab (existing - will continue to work)
+```
+cert_number	timestamp	name	email	score	pct	issued_date	quiz_attempt_id
+```
+
+### Applications Tab (auto-populated)
+The app automatically keeps this header row updated before saving a new MTV application.
+
+```
+ref_number	timestamp	application_type	registered_owner	email	contact	address	region	province	ghp_cert_number	plate	vtype	vmake	vmodel	vyear	capacity	bname	btype	baddress	drive_folder_id	status	vcolor	vengine	vchassis	cr_number	or_number	lto_client_id	body_type	fuel_type	cooling	gross_weight	net_capacity	material	meat_establishment	intended_route
+```
+
+## Testing Data
+
+To test the system, you can manually add a row to Quiz_Attempts:
+
+```
+test-attempt-001	2026-05-03T10:00:00.000Z	John Doe	john@example.com	4	5	80%	PASSED		2026-05-03T10:00:00.000Z
+```
+
+Then run the `checkForNewCertificates()` function in Apps Script to test certificate generation.

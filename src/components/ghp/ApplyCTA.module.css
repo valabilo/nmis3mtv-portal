@@ -1,0 +1,46 @@
+/* components/ghp/ApplyCTA.module.css */
+
+.panel {
+  background: linear-gradient(135deg, var(--green), var(--green-lt));
+  border-radius: var(--radius);
+  padding: 40px 28px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.locked {
+  background: var(--gray-100);
+  opacity: .5;
+  pointer-events: none;
+}
+
+.icon { font-size: 3.5rem; margin-bottom: 12px; }
+
+.panel h3 {
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1.6rem; font-weight: 800;
+  color: var(--white); margin-bottom: 8px;
+}
+.locked h3 { color: var(--gray-700); }
+
+.panel p {
+  color: rgba(255,255,255,.85);
+  font-size: .95rem; margin-bottom: 20px; line-height: 1.6;
+}
+.locked p { color: var(--gray-500); }
+
+.checklist {
+  list-style: none;
+  margin-bottom: 24px;
+  display: inline-flex; flex-direction: column; gap: 8px;
+  text-align: left;
+}
+.checklist li {
+  font-size: .9rem;
+  color: rgba(255,255,255,.9);
+}
+.locked .checklist li { color: var(--gray-700); }
+
+.checkPending { opacity: .5; }
+
+.disabledBtn { pointer-events: none; opacity: .6; }

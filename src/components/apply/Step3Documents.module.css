@@ -1,0 +1,93 @@
+/* components/apply/Step3Documents.module.css */
+
+.intro {
+  font-size: .9rem;
+  color: var(--gray-700);
+  margin-bottom: 24px;
+  line-height: 1.7;
+}
+
+.docList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.docItem {}
+
+.docLabel {
+  font-size: .87rem;
+  font-weight: 700;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Drop zone */
+.dropZone {
+  border: 2px dashed var(--gray-200);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--gray-50);
+}
+.dropZone:hover, .dragOver {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+.dropIcon { font-size: 2rem; display: block; margin-bottom: 6px; }
+.dropZone p { font-size: .88rem; color: var(--gray-500); margin: 0; }
+.dropHint   { font-size: .78rem !important; margin-top: 4px !important; }
+
+/* Uploaded file row */
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--green-pale);
+  border-radius: 8px;
+  font-size: .88rem;
+  color: var(--gray-700);
+}
+.removeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--red);
+  font-size: 1rem;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Certification box */
+.certBox {
+  background: var(--green-pale);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-size: .88rem;
+  color: var(--gray-700);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.agreeLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .9rem;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 560px) {
+  .fileItem,
+  .agreeLabel {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

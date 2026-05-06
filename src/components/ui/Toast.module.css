@@ -1,0 +1,25 @@
+/* components/ui/Toast.module.css */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  background: var(--green);
+  color: var(--white);
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+  font-size: .93rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: var(--transition);
+  max-width: 360px;
+  pointer-events: none;
+}
+.toast.show  { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.toast.error { background: var(--red); }
