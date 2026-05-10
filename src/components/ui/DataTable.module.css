@@ -45,6 +45,14 @@
   margin: 0;
 }
 
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .searchWrap input {
   padding: 8px 12px;
   border: 1.5px solid var(--gray-200);
@@ -57,6 +65,45 @@
 .searchWrap input:focus { border-color: var(--green); }
 
 .tableScroll { overflow-x: auto; }
+
+.headerSortTrigger {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-weight: inherit;
+  justify-content: flex-start;
+  padding: 0;
+  text-align: left;
+}
+
+.headerSortTrigger:hover {
+  color: var(--green);
+}
+
+.sortButton {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--gray-200);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--gray-500);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .62rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0;
+  transition: var(--transition);
+}
 
 .noWrap {
   white-space: nowrap;
@@ -121,6 +168,10 @@
   .searchWrap,
   .searchWrap input {
     width: 100%;
+  }
+
+  .searchWrap {
+    align-items: stretch;
   }
 
   .wrap :global(thead th),

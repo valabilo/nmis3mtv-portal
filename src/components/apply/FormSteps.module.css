@@ -17,6 +17,97 @@
   gap: 8px;
 }
 
+.selectField {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+
+.selectButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--gray-900);
+  cursor: pointer;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .92rem;
+  text-align: left;
+  transition: var(--transition);
+}
+
+.selectButton:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(26,92,50,.1);
+  outline: none;
+}
+
+.selectButton:disabled {
+  cursor: not-allowed;
+  opacity: .75;
+}
+
+.selectButton span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectButton svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--gray-500);
+  stroke-width: 2;
+}
+
+.selectMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 50;
+  display: grid;
+  max-height: 208px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow-md);
+}
+
+.selectOption,
+.selectOptionActive {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gray-900);
+  cursor: pointer;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .9rem;
+  text-align: left;
+}
+
+.selectOption:hover,
+.selectOptionActive {
+  background: var(--green-pale);
+  color: var(--green);
+}
+
 @media (max-width: 640px) {
   .body { padding: 20px 16px; }
 }

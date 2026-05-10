@@ -34,6 +34,7 @@ export function usePagination(data = [], pageSize = DEFAULT_PAGE_SIZE) {
   return {
     query,
     setQuery: handleSetQuery,
+    filtered,
     page: safePage,
     setPage,
     rows,

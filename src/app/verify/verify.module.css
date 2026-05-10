@@ -65,8 +65,239 @@
   font-size: 1.05rem;
 }
 
+.advancedButton,
+.exportButton,
+.clearButton,
+.applyButton {
+  min-height: 36px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .84rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.advancedButton,
+.applyButton {
+  background: var(--green);
+  border: 1.5px solid var(--green);
+  color: var(--white);
+}
+
+.advancedButton:hover,
+.applyButton:hover {
+  background: var(--green-lt);
+  border-color: var(--green-lt);
+}
+
+.exportButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  color: var(--gray-900);
+}
+
+.exportButton:hover:not(:disabled) {
+  background: var(--green-pale);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.exportButton:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.exportButton svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.clearButton {
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  color: var(--gray-900);
+}
+
+.clearButton:hover {
+  background: var(--gray-50);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.statusStack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.expiringBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, .42);
+  padding: 18px;
+}
+
+.searchModal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+}
+
+.modalKicker {
+  display: block;
+  color: var(--gold);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.searchModal h2 {
+  color: var(--green-deep);
+  font-size: 1.18rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.filterGrid label {
+  display: grid;
+  gap: 6px;
+}
+
+.filterGrid label > span,
+.fieldHeader > span {
+  color: var(--gray-700);
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dateFilterField {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inlineCheckbox {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px !important;
+  color: var(--gray-700);
+  cursor: pointer;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.inlineCheckbox input {
+  flex: 0 0 auto;
+}
+
+.dateRangeInputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.checkboxField {
+  align-content: end;
+  align-self: end;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-self: start;
+  min-height: 68px;
+}
+
+.checkboxField input {
+  align-self: center;
+}
+
+.checkboxLabel {
+  align-self: center;
+  color: var(--gray-700);
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 @media (max-width: 780px) {
   .overview {
     grid-template-columns: 1fr;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .advancedButton,
+  .exportButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .clearButton,
+  .applyButton {
+    width: 100%;
   }
 }

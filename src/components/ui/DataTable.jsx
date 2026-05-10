@@ -11,12 +11,32 @@
  *   data      {object[]}       Full dataset (unfiltered)
  *   loading   {boolean}
  *   emptyText {string}         Message when no rows match
+ *   toolbarActions {ReactNode|Function} Extra controls rendered beside the search input
  *   pageSizeOptions {number[]} Options for rows per page (default: [10, 20, 30])
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePagination } from "@/hooks/usePagination";
 import styles from "./DataTable.module.css";
+
+function sortValue(value) {
+  if (value === null || value === undefined) return "";
+
+  const date = new Date(value);
+  if (
+    typeof value === "string" &&
+    value.trim() &&
+    !Number.isNaN(date.getTime()) &&
+    /[-/]|[A-Za-z]{3,}/.test(value)
+  ) {
+    return date.getTime();
+  }
+
+  const number = Number(String(value).replace(/,/g, ""));
+  if (String(value).trim() !== "" && !Number.isNaN(number)) return number;
+
+  return String(value).toLowerCase();
+}
 
 export default function DataTable({
   title,
@@ -24,16 +44,38 @@ export default function DataTable({
   data,
   loading,
   emptyText = "No records found.",
+  toolbarActions = null,
   pageSizeOptions = [10, 20, 30],
 }) {
   const [pageSize, setPageSize] = useState(pageSizeOptions[0]);
-  const { query, setQuery, page, setPage, rows, total, pages } = usePagination(
-    data,
-    pageSize,
-  );
+  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key) return data;
+
+    return [...data].sort((a, b) => {
+      const left = sortValue(a[sortConfig.key]);
+      const right = sortValue(b[sortConfig.key]);
+
+      if (left < right) return sortConfig.direction === "asc" ? -1 : 1;
+      if (left > right) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data, sortConfig]);
+  const { query, setQuery, page, setPage, rows, total, pages, filtered } =
+    usePagination(sortedData, pageSize);
 
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
+    setPage(1);
+  };
+
+  const handleSort = (key) => {
+    setSortConfig((current) => {
+      const direction =
+        current.key === key && current.direction === "asc" ? "desc" : "asc";
+
+      return { key, direction };
+    });
     setPage(1);
   };
 
@@ -73,6 +115,9 @@ export default function DataTable({
             placeholder="Filter records..."
             aria-label="Filter table records"
           />
+          {typeof toolbarActions === "function"
+            ? toolbarActions({ filteredRows: filtered, query, total })
+            : toolbarActions}
         </div>
       </div>
 
@@ -85,7 +130,23 @@ export default function DataTable({
                 <th
                   key={col.key}
                   className={col.className ? styles[col.className] : undefined}>
-                  {col.label}
+                  <button
+                    type="button"
+                    className={styles.headerSortTrigger}
+                    onClick={() => handleSort(col.key)}
+                    aria-label={`Sort by ${col.label} ${
+                      sortConfig.key === col.key &&
+                      sortConfig.direction === "asc"
+                        ? "descending"
+                        : "ascending"
+                    }`}>
+                    <span>{col.label}</span>
+                    {sortConfig.key === col.key ? (
+                      <span className={styles.sortButton} aria-hidden="true">
+                        {sortConfig.direction === "asc" ? "^" : "v"}
+                      </span>
+                    ) : null}
+                  </button>
                 </th>
               ))}
             </tr>

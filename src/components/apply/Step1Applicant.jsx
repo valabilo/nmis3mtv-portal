@@ -8,6 +8,7 @@
 
 import styles from "./FormSteps.module.css";
 import Link from "next/link";
+import SelectField from "./SelectField";
 
 const APPLICATION_TYPES = ["New", "Renewal", "Amendment"];
 
@@ -41,23 +42,18 @@ export default function Step1Applicant({
 
       <div className="form-grid">
         <div className="form-group">
-          <label htmlFor="applicationType">
-            Type of Application <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="applicationType"
+            label="Type of Application"
+            required
             value={data.applicationType}
-            onChange={(e) => onChange("applicationType", e.target.value)}
+            options={APPLICATION_TYPES.map((type) => ({
+              value: type,
+              label: type,
+            }))}
+            onChange={(value) => onChange("applicationType", value)}
             disabled={lockApplicationType}
-            style={
-              lockApplicationType
-                ? { opacity: 0.75, cursor: "not-allowed" }
-                : undefined
-            }>
-            {APPLICATION_TYPES.map((type) => (
-              <option key={type}>{type}</option>
-            ))}
-          </select>
+          />
         </div>
         <div className="form-group">
           <label htmlFor="registeredOwner">
@@ -87,36 +83,34 @@ export default function Step1Applicant({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="region">
-            Region <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="region"
+            label="Region"
+            required
             value="III"
             disabled
+            options={[{ value: "III", label: "Region III - Central Luzon" }]}
             onChange={() => {}}
-            style={{ opacity: 0.75, cursor: "not-allowed" }}>
-            <option value="III">Region III - Central Luzon</option>
-          </select>
+          />
           <span className="form-hint">
             This portal is for NMIS RTOC III — Region III only.
           </span>
         </div>
         <div className="form-group">
-          <label htmlFor="province">
-            Province <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="province"
+            label="Province"
+            required
             value={data.province}
-            onChange={(e) => onChange("province", e.target.value)}>
-            <option value="">-- Select Province --</option>
-            {PROVINCES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "-- Select Province --" },
+              ...PROVINCES.map((province) => ({
+                value: province,
+                label: province,
+              })),
+            ]}
+            onChange={(value) => onChange("province", value)}
+          />
         </div>
       </div>
 

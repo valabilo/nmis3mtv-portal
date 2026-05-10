@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
+  ChevronDownIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   ClipboardDocumentListIcon,
@@ -294,6 +295,41 @@ function MetricCard({ label, value, helper, tone = "default", onClick }) {
       <strong>{value}</strong>
       <p>{helper}</p>
     </button>
+  );
+}
+
+function Dropdown({ id, label, value, options, onChange, disabled = false }) {
+  const selected = options.find((option) => option.value === value) || options[0];
+
+  return (
+    <label className={styles.dropdownField} htmlFor={id}>
+      {label ? <span>{label}</span> : null}
+      <div className={styles.dropdown}>
+        <button
+          id={id}
+          type="button"
+          className={styles.dropdownButton}
+          disabled={disabled}
+          aria-haspopup="listbox">
+          <span>{selected?.label || "Select"}</span>
+          <ChevronDownIcon aria-hidden="true" />
+        </button>
+        <div className={styles.dropdownMenu} role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={option.value === value ? styles.dropdownOptionActive : styles.dropdownOption}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onChange(option.value)}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </label>
   );
 }
 
@@ -679,6 +715,32 @@ export default function DashboardHub() {
     return { pending, activeReview, approved, flagged };
   }, [applications]);
 
+  const statusOptions = [
+    { value: "All", label: "All statuses" },
+    { value: "ReviewGroup", label: "In review" },
+    { value: "ApprovedGroup", label: "Approved / released" },
+    { value: "FlaggedGroup", label: "Rejected / denied" },
+    ...STATUSES.map((status) => ({ value: status, label: status })),
+  ];
+  const yearOptions = [
+    { value: "All", label: "All years" },
+    ...applicationYears.map((year) => ({ value: year, label: year })),
+  ];
+  const monthOptions = [
+    { value: "All", label: "All months" },
+    ...MONTHS.map(([value, label]) => ({ value, label })),
+  ];
+  const accreditedStatusOptions = [
+    { value: "All", label: "All statuses" },
+    { value: "Active", label: "Active" },
+    { value: "Expired", label: "Expired" },
+    { value: "Suspended", label: "Suspended" },
+    { value: "Revoked", label: "Revoked" },
+  ];
+  const accreditedYearOptions = [
+    { value: "All", label: "All years" },
+    ...accreditedYears.map((year) => ({ value: year, label: year })),
+  ];
   function handleStatusChangeRequest(nextStatus) {
     if (isViewOnlyLocked) {
       setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
@@ -982,42 +1044,24 @@ export default function DashboardHub() {
                     placeholder="Search reference, owner, plate, email..."
                   />
                 </div>
-                <select
+                <Dropdown
+                  id="application-status-filter"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  aria-label="Filter by status">
-                  <option value="All">All statuses</option>
-                  <option value="ReviewGroup">In review</option>
-                  <option value="ApprovedGroup">Approved / released</option>
-                  <option value="FlaggedGroup">Rejected / denied</option>
-                  {STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  options={statusOptions}
+                  onChange={setStatusFilter}
+                />
+                <Dropdown
+                  id="application-year-filter"
                   value={yearFilter}
-                  onChange={(event) => setYearFilter(event.target.value)}
-                  aria-label="Filter applications by year">
-                  <option value="All">All years</option>
-                  {applicationYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  options={yearOptions}
+                  onChange={setYearFilter}
+                />
+                <Dropdown
+                  id="application-month-filter"
                   value={monthFilter}
-                  onChange={(event) => setMonthFilter(event.target.value)}
-                  aria-label="Filter applications by month">
-                  <option value="All">All months</option>
-                  {MONTHS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  onChange={setMonthFilter}
+                />
                 <button
                   type="button"
                   className={styles.exportButton}
@@ -1097,38 +1141,24 @@ export default function DashboardHub() {
                     placeholder="Search registration no., plate, establishment, owner..."
                   />
                 </div>
-                <select
+                <Dropdown
+                  id="accredited-status-filter"
                   value={accreditedStatusFilter}
-                  onChange={(event) => setAccreditedStatusFilter(event.target.value)}
-                  aria-label="Filter accredited records by status">
-                  <option value="All">All statuses</option>
-                  <option value="Active">Active</option>
-                  <option value="Expired">Expired</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Revoked">Revoked</option>
-                </select>
-                <select
+                  options={accreditedStatusOptions}
+                  onChange={setAccreditedStatusFilter}
+                />
+                <Dropdown
+                  id="accredited-year-filter"
                   value={accreditedYearFilter}
-                  onChange={(event) => setAccreditedYearFilter(event.target.value)}
-                  aria-label="Filter accredited records by year">
-                  <option value="All">All years</option>
-                  {accreditedYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-                <select
+                  options={accreditedYearOptions}
+                  onChange={setAccreditedYearFilter}
+                />
+                <Dropdown
+                  id="accredited-month-filter"
                   value={accreditedMonthFilter}
-                  onChange={(event) => setAccreditedMonthFilter(event.target.value)}
-                  aria-label="Filter accredited records by month">
-                  <option value="All">All months</option>
-                  {MONTHS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  options={monthOptions}
+                  onChange={setAccreditedMonthFilter}
+                />
                 <button
                   type="button"
                   className={styles.exportButton}
@@ -1210,17 +1240,16 @@ export default function DashboardHub() {
                     <div className={styles.statusEditor}>
                       <label htmlFor="status">Update status</label>
                       <div>
-                        <select
+                        <Dropdown
                           id="status"
                           value={draftStatus || selectedApplication.status}
                           disabled={saving || isViewOnlyLocked}
-                          onChange={(event) => setDraftStatus(event.target.value)}>
-                          {STATUSES.map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
+                          options={STATUSES.map((status) => ({
+                            value: status,
+                            label: status,
+                          }))}
+                          onChange={setDraftStatus}
+                        />
                         <button
                           type="button"
                           disabled={
@@ -1328,19 +1357,18 @@ export default function DashboardHub() {
 
                   {selectedApplication.documents?.length ? (
                     <>
-                      <label className={styles.reviewDocumentSelect}>
-                        <span>Document</span>
-                        <select
+                      <div className={styles.reviewDocumentSelect}>
+                        <Dropdown
+                          id="document-review"
+                          label="Document"
                           value={selectedDocument?.id || ""}
-                          onChange={(event) => setSelectedDocumentId(event.target.value)}
-                          aria-label="Select document to review">
-                          {selectedApplication.documents.map((document) => (
-                            <option key={document.id} value={document.id}>
-                              {document.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          options={selectedApplication.documents.map((document) => ({
+                            value: document.id,
+                            label: document.name,
+                          }))}
+                          onChange={setSelectedDocumentId}
+                        />
+                      </div>
 
                       {selectedDocument ? (
                         <iframe

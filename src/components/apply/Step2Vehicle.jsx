@@ -4,6 +4,7 @@
  */
 
 import styles from "./FormSteps.module.css";
+import SelectField from "./SelectField";
 
 const VEHICLE_TYPES = [
   "Refrigerated Truck",
@@ -69,18 +70,20 @@ export default function Step2Vehicle({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="vtype">
-            Vehicle Type <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="vtype"
+            label="Vehicle Type"
+            required
             value={data.vtype}
-            onChange={(e) => onChange("vtype", e.target.value)}>
-            <option value="">-- Select Type --</option>
-            {VEHICLE_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "-- Select Type --" },
+              ...VEHICLE_TYPES.map((type) => ({
+                value: type,
+                label: type,
+              })),
+            ]}
+            onChange={(value) => onChange("vtype", value)}
+          />
         </div>
         <div className="form-group">
           <label htmlFor="vmake">
@@ -155,16 +158,19 @@ export default function Step2Vehicle({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="material">Compartment Material</label>
-          <select
+          <SelectField
             id="material"
+            label="Compartment Material"
             value={data.material}
-            onChange={(e) => onChange("material", e.target.value)}>
-            <option value="">-- Select --</option>
-            {MATERIALS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "-- Select --" },
+              ...MATERIALS.map((material) => ({
+                value: material,
+                label: material,
+              })),
+            ]}
+            onChange={(value) => onChange("material", value)}
+          />
         </div>
       </div>
 
@@ -173,55 +179,59 @@ export default function Step2Vehicle({
       </h2>
       <div className="form-grid">
         <div className="form-group">
-          <label htmlFor="btype">
-            Business Type <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="btype"
+            label="Business Type"
+            required
             value={data.btype}
-            onChange={(e) => onChange("btype", e.target.value)}
-            disabled={loadingEstablishmentTypes}>
-            <option value="">
-              {loadingEstablishmentTypes
-                ? "Loading business types..."
-                : "-- Select Business Type --"}
-            </option>
-            {hasSelectedBusinessType ? (
-              <option value={selectedBusinessType}>{selectedBusinessType}</option>
-            ) : null}
-            {establishmentTypes.map((item) => (
-              <option key={item.title} value={item.title}>
-                {item.title}
-              </option>
-            ))}
-          </select>
+            options={[
+              {
+                value: "",
+                label: loadingEstablishmentTypes
+                  ? "Loading business types..."
+                  : "-- Select Business Type --",
+              },
+              ...(hasSelectedBusinessType
+                ? [{ value: selectedBusinessType, label: selectedBusinessType }]
+                : []),
+              ...establishmentTypes.map((item) => ({
+                value: item.title,
+                label: item.title,
+              })),
+            ]}
+            onChange={(value) => onChange("btype", value)}
+            disabled={loadingEstablishmentTypes}
+          />
         </div>
         <div className="form-group">
-          <label htmlFor="meatEstablishment">
-            Accredited Meat Establishment to be served{" "}
-            <span className="req">*</span>
-          </label>
-          <select
+          <SelectField
             id="meatEstablishment"
+            label="Accredited Meat Establishment to be served"
+            required
             value={data.meatEstablishment}
-            onChange={(e) => onChange("meatEstablishment", e.target.value)}
-            disabled={loadingEstablishmentNames}>
-            <option value="">
-              {loadingEstablishmentNames
-                ? "Loading establishments..."
-                : "-- Select Meat Establishment --"}
-            </option>
-            {hasSelectedEstablishment ? (
-              <option value={selectedEstablishment}>
-                {selectedEstablishment}
-              </option>
-            ) : null}
-            {establishmentNames.map((item) => (
-              <option key={item.title} value={item.title}>
-                {item.title}
-              </option>
-            ))}
-          </select>
+            options={[
+              {
+                value: "",
+                label: loadingEstablishmentNames
+                  ? "Loading establishments..."
+                  : "-- Select Meat Establishment --",
+              },
+              ...(hasSelectedEstablishment
+                ? [
+                    {
+                      value: selectedEstablishment,
+                      label: selectedEstablishment,
+                    },
+                  ]
+                : []),
+              ...establishmentNames.map((item) => ({
+                value: item.title,
+                label: item.title,
+              })),
+            ]}
+            onChange={(value) => onChange("meatEstablishment", value)}
+            disabled={loadingEstablishmentNames}
+          />
         </div>
         <div className="form-group">
           <label htmlFor="intendedRoute">
