@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import StatusTag from '@/components/ui/StatusTag'
+import { ACCEPTED_FILE_TYPES, ACCEPTED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
 import styles from './ApplicationStatusPanel.module.css'
+
+const CHUNK_SIZE = 4 * 1024 * 1024
+const PAYMENT_UPLOAD_STATUSES = ['For Payment', 'Rejected Proof of Payment']
+const PAYMENT_LOCKED_STATUSES = ['For Payment Verification', 'Payment Verified']
 
 function Detail({ label, value }) {
   return (
@@ -15,6 +20,63 @@ function Detail({ label, value }) {
   )
 }
 
+async function initUpload({ fileName, mimeType, folderId, fileSize }) {
+  const res = await fetch('/api/drive/init-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName, mimeType, folderId, fileSize }),
+  })
+  const json = await res.json()
+  if (!res.ok || !json.success) throw new Error(json.error || 'Failed to initialize proof upload.')
+  return json.uploadUrl
+}
+
+async function uploadChunk({ uploadUrl, chunk, rangeStart, rangeEnd, totalSize, isLast }) {
+  const form = new FormData()
+  form.append('uploadUrl', uploadUrl)
+  form.append('chunk', chunk)
+  form.append('rangeStart', String(rangeStart))
+  form.append('rangeEnd', String(rangeEnd))
+  form.append('totalSize', String(totalSize))
+  form.append('isLast', isLast ? 'true' : 'false')
+
+  const res = await fetch('/api/drive/upload-chunk', {
+    method: 'POST',
+    body: form,
+  })
+  const json = await res.json()
+  if (!res.ok || !json.success) throw new Error(json.error || 'Proof upload failed.')
+  return json
+}
+
+async function uploadProofFile({ file, refNumber, folderId, onProgress }) {
+  const safeName = `${refNumber}_proof_of_payment_${file.name}`.replace(/[^\w.\- ]+/g, '_')
+  const uploadUrl = await initUpload({
+    fileName: safeName,
+    mimeType: file.type || 'application/octet-stream',
+    folderId,
+    fileSize: file.size,
+  })
+
+  let fileId = null
+  for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
+    const end = Math.min(offset + CHUNK_SIZE, file.size) - 1
+    const result = await uploadChunk({
+      uploadUrl,
+      chunk: file.slice(offset, end + 1),
+      rangeStart: offset,
+      rangeEnd: end,
+      totalSize: file.size,
+      isLast: end + 1 >= file.size,
+    })
+    if (result.done) fileId = result.fileId
+    onProgress?.(Math.round(((end + 1) / file.size) * 100))
+  }
+
+  if (!fileId) throw new Error('Proof upload did not return a Drive file ID.')
+  return { fileId, fileName: safeName }
+}
+
 export default function ApplicationStatusPanel() {
   const searchParams = useSearchParams()
   const initialRef = searchParams.get('ref') ?? ''
@@ -22,6 +84,12 @@ export default function ApplicationStatusPanel() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [application, setApplication] = useState(null)
+  const [paymentReference, setPaymentReference] = useState('')
+  const [paymentSaving, setPaymentSaving] = useState(false)
+  const [paymentMessage, setPaymentMessage] = useState('')
+  const [paymentError, setPaymentError] = useState('')
+  const [proofFile, setProofFile] = useState(null)
+  const [proofProgress, setProofProgress] = useState(0)
 
   async function checkStatus(value = ref) {
     const query = value.trim()
@@ -47,11 +115,112 @@ export default function ApplicationStatusPanel() {
       }
 
       setApplication(json.application)
+      setPaymentReference(json.application.paymentReference || '')
+      setProofFile(null)
+      setProofProgress(0)
+      setPaymentMessage('')
+      setPaymentError('')
     } catch (err) {
       setError(err.message || 'Unable to check application status.')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function submitPaymentReference(event) {
+    event.preventDefault()
+
+    const query = application?.reference || ref.trim()
+    const value = paymentReference.trim()
+
+    if (!query || !value) {
+      setPaymentError('Enter your payment reference number.')
+      return
+    }
+
+    if (!proofFile) {
+      setPaymentError('Upload your proof of payment.')
+      return
+    }
+
+    if (!application?.folderId) {
+      setPaymentError('Application folder is unavailable. Please contact NMIS.')
+      return
+    }
+
+    setPaymentSaving(true)
+    setPaymentError('')
+    setPaymentMessage('')
+    setProofProgress(0)
+
+    try {
+      const uploadedProof = await uploadProofFile({
+        file: proofFile,
+        refNumber: query,
+        folderId: application.folderId,
+        onProgress: setProofProgress,
+      })
+      const response = await fetch('/api/applications/payment-reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference: query,
+          paymentReference: value,
+          proofFileId: uploadedProof.fileId,
+          proofFileName: uploadedProof.fileName,
+        }),
+      })
+      const json = await response.json()
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || 'Unable to submit proof of payment.')
+      }
+
+      setPaymentReference(json.paymentReference || value)
+      setPaymentMessage(json.message || 'Proof of payment submitted for NMIS verification.')
+      setProofFile(null)
+      setApplication(current =>
+        current
+          ? {
+              ...current,
+              status: json.status || 'For Payment Verification',
+              paymentReference: json.paymentReference || value,
+              proofOfPaymentFileName: json.proofFileName || uploadedProof.fileName,
+              orderOfPaymentUrl: '',
+            }
+          : current,
+      )
+    } catch (err) {
+      setPaymentError(err.message || 'Unable to submit proof of payment.')
+    } finally {
+      setPaymentSaving(false)
+    }
+  }
+
+  function chooseProofFile(event) {
+    const file = event.target.files?.[0]
+    setPaymentError('')
+    setPaymentMessage('')
+    setProofProgress(0)
+
+    if (!file) {
+      setProofFile(null)
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setProofFile(null)
+      setPaymentError('Proof of payment must be 5 MB or smaller.')
+      return
+    }
+
+    if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
+      setProofFile(null)
+      setPaymentError('Upload proof as PDF, JPG, JPEG, or PNG only.')
+      return
+    }
+
+    setProofFile(file)
   }
 
   useEffect(() => {
@@ -116,6 +285,64 @@ export default function ApplicationStatusPanel() {
               <strong>Remarks</strong>
               <p>{application.remarks || 'No remarks have been added yet.'}</p>
             </div>
+
+            {application.orderOfPaymentUrl ? (
+              <div className={styles.downloadCard}>
+                <div>
+                  <strong>Order of Payment</strong>
+                  <p>Download your Order of Payment PDF and online payment steps.</p>
+                </div>
+                <a
+                  href={application.orderOfPaymentUrl}
+                  className={styles.downloadButton}
+                  download>
+                  Download
+                </a>
+              </div>
+            ) : null}
+
+            {PAYMENT_UPLOAD_STATUSES.includes(application.status) || PAYMENT_LOCKED_STATUSES.includes(application.status) ? (
+              <form className={styles.paymentCard} onSubmit={submitPaymentReference}>
+                <div>
+                  <strong>Proof of Payment</strong>
+                  <p>
+                    Already paid? Enter the Landbank/payment reference number and upload your payment confirmation.
+                  </p>
+                </div>
+                <div className={styles.paymentForm}>
+                  <input
+                    type="text"
+                    value={paymentReference}
+                    onChange={event => setPaymentReference(event.target.value.toUpperCase())}
+                    placeholder="e.g. LBP-123456789"
+                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
+                    aria-label="Payment reference number"
+                  />
+                  <input
+                    type="file"
+                    accept={ACCEPTED_FILE_TYPES}
+                    onChange={chooseProofFile}
+                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
+                    aria-label="Proof of payment"
+                  />
+                  <button
+                    className={styles.downloadButton}
+                    type="submit"
+                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}>
+                    {paymentSaving ? 'Submitting...' : PAYMENT_LOCKED_STATUSES.includes(application.status) ? 'Submitted' : 'Submit Proof'}
+                  </button>
+                </div>
+                {proofFile ? <p className={styles.paymentMeta}>Selected file: {proofFile.name}</p> : null}
+                {application.proofOfPaymentFileName && !proofFile ? (
+                  <p className={styles.paymentMeta}>Submitted file: {application.proofOfPaymentFileName}</p>
+                ) : null}
+                {paymentSaving && proofProgress > 0 ? (
+                  <p className={styles.paymentMeta}>Uploading proof: {proofProgress}%</p>
+                ) : null}
+                {paymentMessage ? <p className={styles.paymentSuccess}>{paymentMessage}</p> : null}
+                {paymentError ? <p className={styles.paymentError}>{paymentError}</p> : null}
+              </form>
+            ) : null}
           </div>
         </div>
       )}

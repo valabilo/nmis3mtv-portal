@@ -17,19 +17,19 @@ import {
   Squares2X2Icon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
+import DataTable from "@/components/ui/DataTable";
 import StatusTag from "@/components/ui/StatusTag";
+import { normalise } from "@/lib/utils";
 import styles from "./DashboardHub.module.css";
 
 const STATUSES = [
-  "Pending",
-  "For Review",
   "Under Review",
-  "For Inspection",
-  "Approved",
-  "Released",
+  "For Payment",
+  "Rejected Application",
+  "For Payment Verification",
+  "Payment Verified",
+  "Rejected Proof of Payment",
   "Completed",
-  "Rejected",
-  "Denied",
 ];
 
 const TABS = [
@@ -68,18 +68,69 @@ const APPLICATION_EXPORT_COLUMNS = [
 ];
 
 const ACCREDITED_EXPORT_COLUMNS = [
-  ["Date Issued", "approvedAt"],
-  ["Name of Owner", "owner"],
-  ["Address", "address"],
-  ["Establishment Type", "type"],
-  ["Establishment Name", "business"],
-  ["Plate", "plate"],
   ["Registration No.", "reference"],
-  ["Expiry", "expiry"],
-  ["Receipt No.", "receiptNo"],
-  ["Status", "status"],
-  ["Remarks", "remarks"],
+  ["Plate No.", "plate"],
+  ["Establishment Name", "business"],
+  ["Establishment Type", "type"],
+  ["Owner", "owner"],
+  ["Date Issued", "approvedAt"],
+  ["Expiry Date", "expiry"],
+  ["Status", (row) => row.status || "Active"],
 ];
+
+const ACCREDITED_TABLE_COLUMNS = [
+  {
+    key: "reference",
+    label: "Registration No.",
+    className: "noWrap",
+  },
+  {
+    key: "plate",
+    label: "Plate No.",
+    className: "noWrap",
+    render: (value) => <strong>{value}</strong>,
+  },
+  { key: "type", label: "Establishment Type" },
+  { key: "business", label: "Establishment Name" },
+  { key: "owner", label: "Owner" },
+  {
+    key: "approvedAt",
+    label: "Date Issued",
+    className: "noWrap",
+    render: (value) => formatDate(value),
+  },
+  {
+    key: "expiry",
+    label: "Expiry Date",
+    className: "noWrap",
+    render: (value) => formatDate(value),
+  },
+  {
+    key: "status",
+    label: "Status",
+    render: (value, row) => (
+      <StatusWithExpiry status={value || "Active"} expiry={row.expiry} />
+    ),
+  },
+];
+
+const EMPTY_ACCREDITED_ADVANCED_FILTERS = {
+  reference: "",
+  plate: "",
+  establishment: "",
+  establishmentType: "All",
+  owner: "",
+  status: "All",
+  issuedYear: "",
+  issuedDateRange: false,
+  issuedStartDate: "",
+  issuedEndDate: "",
+  expiryYear: "",
+  expiryDateRange: false,
+  expiryStartDate: "",
+  expiryEndDate: "",
+  expiringSoonOnly: false,
+};
 
 const MONTHS = [
   ["01", "January"],
@@ -108,6 +159,62 @@ function formatDate(value) {
     month: "short",
     day: "numeric",
   });
+}
+
+function addMonths(date, months) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function isExpiringSoon(value, status) {
+  if (!value || status === "Expired" || status === "Revoked") return false;
+
+  const expiry = new Date(value);
+  if (Number.isNaN(expiry.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+
+  return expiry >= today && expiry <= addMonths(today, 2);
+}
+
+function dateOnlyValue(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().slice(0, 10);
+}
+
+function dateInRange(value, start, end) {
+  if (!start && !end) return true;
+
+  const date = dateOnlyValue(value);
+  if (!date) return false;
+
+  return (!start || date >= start) && (!end || date <= end);
+}
+
+function openNativeDatePicker(event) {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {
+    // Some browsers only allow showPicker during a direct pointer action.
+  }
+}
+
+function StatusWithExpiry({ status, expiry }) {
+  return (
+    <span className={styles.statusStack}>
+      <StatusTag status={status || "Active"} />
+      {isExpiringSoon(expiry, status) ? (
+        <span className={styles.expiringBadge}>Expiring soon</span>
+      ) : null}
+    </span>
+  );
 }
 
 function formatTime(value) {
@@ -202,9 +309,31 @@ function buildApplicationSnapshotMap(records) {
 }
 
 function isAmendmentSnapshot(snapshot) {
+  const applicationType = snapshot.applicationType.toLowerCase();
   return (
-    snapshot.applicationType === "Amendment" ||
+    applicationType === "amendment" ||
     snapshot.latestRemarks.toLowerCase().includes("amendment submitted")
+  );
+}
+
+function registrationNumberForApplication(application, accreditedRecords = []) {
+  const plate = String(application.plate || "").trim().toUpperCase();
+  const reference = String(application.reference || "").trim().toUpperCase();
+  const record = accreditedRecords.find((item) => {
+    const itemPlate = String(item.plate || "").trim().toUpperCase();
+    const itemReference = String(item.reference || "").trim().toUpperCase();
+
+    return (plate && itemPlate === plate) || (reference && itemReference === reference);
+  });
+
+  return record?.reference || application.registrationNo || application.reference || "";
+}
+
+function sortDropdownOptions(options) {
+  return [...options].sort((a, b) =>
+    String(a.label || "").localeCompare(String(b.label || ""), "en", {
+      sensitivity: "base",
+    }),
   );
 }
 
@@ -254,7 +383,7 @@ function ApplicationTrail({ history = [], submittedAt }) {
     ? history
     : [
         {
-          status: "Pending",
+          status: "Application Received",
           remarks: "Application submitted.",
           timestamp: submittedAt,
         },
@@ -271,7 +400,7 @@ function ApplicationTrail({ history = [], submittedAt }) {
           </div>
           <div className={styles.trailContent}>
             <div>
-              <strong>{item.status || "Pending"}</strong>
+              <strong>{item.status || "Application Received"}</strong>
               <time dateTime={item.timestamp || undefined}>
                 <span>{formatDate(item.timestamp)}</span>
                 <small>{formatTime(item.timestamp)}</small>
@@ -299,35 +428,158 @@ function MetricCard({ label, value, helper, tone = "default", onClick }) {
 }
 
 function Dropdown({ id, label, value, options, onChange, disabled = false }) {
-  const selected = options.find((option) => option.value === value) || options[0];
+  const menuId = `${id}-menu`;
+  const rootRef = useRef(null);
+  const optionRefs = useRef(new Map());
+  const searchRef = useRef("");
+  const searchTimerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [activeValue, setActiveValue] = useState(value);
+  const sortedOptions = useMemo(() => sortDropdownOptions(options), [options]);
+  const selected =
+    sortedOptions.find((option) => option.value === value) || sortedOptions[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function handlePointerDown(event) {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setActiveValue(value);
+  }, [value]);
+
+  function focusOption(option) {
+    if (!option) return;
+    setActiveValue(option.value);
+    window.requestAnimationFrame(() => {
+      const node = optionRefs.current.get(option.value);
+      node?.scrollIntoView({ block: "nearest" });
+      node?.focus();
+    });
+  }
+
+  function chooseOption(nextValue) {
+    onChange(nextValue);
+    setOpen(false);
+  }
+
+  function handleTypeAhead(event) {
+    if (event.key.length !== 1 || event.altKey || event.ctrlKey || event.metaKey) {
+      return false;
+    }
+
+    const typed = event.key.toLowerCase();
+    searchRef.current += typed;
+    if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = window.setTimeout(() => {
+      searchRef.current = "";
+    }, 700);
+
+    const match =
+      sortedOptions.find((option) =>
+        String(option.label || "").toLowerCase().startsWith(searchRef.current),
+      ) ||
+      sortedOptions.find((option) =>
+        String(option.label || "").toLowerCase().startsWith(typed),
+      );
+
+    if (match) {
+      setOpen(true);
+      focusOption(match);
+    }
+
+    return true;
+  }
+
+  function handleButtonKeyDown(event) {
+    if (handleTypeAhead(event)) {
+      event.preventDefault();
+      return;
+    }
+
+    if (["ArrowDown", "Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      setOpen(true);
+      focusOption(selected);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  function handleOptionKeyDown(event, option) {
+    if (handleTypeAhead(event)) {
+      event.preventDefault();
+      return;
+    }
+
+    const currentIndex = sortedOptions.findIndex((item) => item.value === option.value);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusOption(sortedOptions[Math.min(currentIndex + 1, sortedOptions.length - 1)]);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusOption(sortedOptions[Math.max(currentIndex - 1, 0)]);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      chooseOption(option.value);
+    } else if (event.key === "Escape") {
+      setOpen(false);
+      rootRef.current?.querySelector("button")?.focus();
+    }
+  }
 
   return (
     <label className={styles.dropdownField} htmlFor={id}>
       {label ? <span>{label}</span> : null}
-      <div className={styles.dropdown}>
+      <div className={styles.dropdown} ref={rootRef}>
         <button
           id={id}
           type="button"
           className={styles.dropdownButton}
           disabled={disabled}
-          aria-haspopup="listbox">
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={menuId}
+          onClick={() => setOpen((current) => !current)}
+          onKeyDown={handleButtonKeyDown}>
           <span>{selected?.label || "Select"}</span>
           <ChevronDownIcon aria-hidden="true" />
         </button>
-        <div className={styles.dropdownMenu} role="listbox" aria-label={label}>
-          {options.map((option) => (
+        {open ? (
+          <div id={menuId} className={styles.dropdownMenu} role="listbox" aria-label={label}>
+            {sortedOptions.map((option) => (
             <button
               key={option.value}
+              ref={(node) => {
+                if (node) optionRefs.current.set(option.value, node);
+                else optionRefs.current.delete(option.value);
+              }}
               type="button"
               role="option"
               aria-selected={option.value === value}
+              tabIndex={option.value === activeValue ? 0 : -1}
               className={option.value === value ? styles.dropdownOptionActive : styles.dropdownOption}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onChange(option.value)}>
+              onClick={() => chooseOption(option.value)}
+              onKeyDown={(event) => handleOptionKeyDown(event, option)}>
               {option.label}
             </button>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </label>
   );
@@ -352,10 +604,10 @@ export default function DashboardHub() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("All");
-  const [accreditedQuery, setAccreditedQuery] = useState("");
-  const [accreditedStatusFilter, setAccreditedStatusFilter] = useState("All");
-  const [accreditedYearFilter, setAccreditedYearFilter] = useState("All");
-  const [accreditedMonthFilter, setAccreditedMonthFilter] = useState("All");
+  const [accreditedAdvancedOpen, setAccreditedAdvancedOpen] = useState(false);
+  const [accreditedAdvancedFilters, setAccreditedAdvancedFilters] = useState(
+    EMPTY_ACCREDITED_ADVANCED_FILTERS,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -457,7 +709,7 @@ export default function DashboardHub() {
     setDashboardNotifications((items) => items.filter((item) => item.id !== id));
   }
 
-  function detectApplicationNotifications(records) {
+  function detectApplicationNotifications(records, accredited = []) {
     const previous = knownApplicationsRef.current;
     const next = buildApplicationSnapshotMap(records);
 
@@ -474,11 +726,20 @@ export default function DashboardHub() {
       const before = previous.get(reference);
       const after = next.get(reference);
       if (!after) return;
+      const registrationNo = registrationNumberForApplication(
+        application,
+        accredited,
+      );
 
       if (!before) {
+        const isAmendment = isAmendmentSnapshot(after);
         pushDashboardNotification({
-          title: "New application received",
-          message: `${reference} from ${application.registeredOwner || "an applicant"}`,
+          title: isAmendment
+            ? "Application amendment received"
+            : "New application received",
+          message: isAmendment
+            ? `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`
+            : `Registration No.: ${registrationNo}. ${application.registeredOwner || "New applicant"}`,
           reference,
           tab: "details",
         });
@@ -487,13 +748,14 @@ export default function DashboardHub() {
 
       const changed =
         before.timestamp !== after.timestamp ||
+        before.applicationType !== after.applicationType ||
         before.statusHistoryLength !== after.statusHistoryLength ||
         before.latestTimestamp !== after.latestTimestamp;
 
       if (changed && isAmendmentSnapshot(after)) {
         pushDashboardNotification({
           title: "Application amendment received",
-          message: `${reference} has been resubmitted with corrected details or documents.`,
+          message: `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`,
           reference,
           tab: "details",
         });
@@ -515,7 +777,7 @@ export default function DashboardHub() {
         if (!response.ok || !json.success || cancelled) return;
 
         const records = json.data || [];
-        detectApplicationNotifications(records);
+        detectApplicationNotifications(records, json.accredited || []);
         setApplications(records);
         setAccreditedRecords(json.accredited || []);
         setStats((current) => ({ ...current, ...(json.stats || {}) }));
@@ -607,9 +869,9 @@ export default function DashboardHub() {
 
   const filteredApplications = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const reviewStatuses = ["For Review", "Under Review", "For Inspection"];
-    const approvedStatuses = ["Approved", "Released", "Completed"];
-    const flaggedStatuses = ["Rejected", "Denied"];
+    const reviewStatuses = ["Under Review", "For Payment", "For Payment Verification", "Payment Verified"];
+    const approvedStatuses = ["Completed"];
+    const flaggedStatuses = ["Rejected Application", "Rejected Proof of Payment"];
 
     return applications.filter((application) => {
       const submittedDate = recordYearMonth(application.timestamp);
@@ -653,63 +915,80 @@ export default function DashboardHub() {
   }, [applications]);
 
   const filteredAccreditedRecords = useMemo(() => {
-    const normalizedQuery = accreditedQuery.trim().toLowerCase();
-
     return accreditedRecords.filter((record) => {
-      const recordDate = recordYearMonth(record.approvedAt || record.expiry);
+      const status = record.status || "Active";
+      const checks = [
+        [accreditedAdvancedFilters.reference, record.reference || record.registration_no],
+        [accreditedAdvancedFilters.plate, record.plate || record.plate_no || record.plate_number],
+        [accreditedAdvancedFilters.establishment, record.business || record.business_name],
+        [accreditedAdvancedFilters.owner, record.owner],
+      ];
+      const textMatches = checks.every(([filterValue, recordValue]) => {
+        const filterText = normalise(filterValue);
+        return !filterText || normalise(recordValue || "").includes(filterText);
+      });
       const matchesStatus =
-        accreditedStatusFilter === "All" || record.status === accreditedStatusFilter;
-      const matchesYear =
-        accreditedYearFilter === "All" || recordDate.year === accreditedYearFilter;
-      const matchesMonth =
-        accreditedMonthFilter === "All" || recordDate.month === accreditedMonthFilter;
-      const searchText = [
-        record.reference,
-        record.plate,
-        record.business,
-        record.owner,
-        record.address,
-        record.telNo,
-        record.receiptNo,
-        record.status,
-        record.remarks,
-      ]
-        .join(" ")
-        .toLowerCase();
+        accreditedAdvancedFilters.status === "All" ||
+        status === accreditedAdvancedFilters.status;
+      const matchesEstablishmentType =
+        accreditedAdvancedFilters.establishmentType === "All" ||
+        normalise(record.type) === normalise(accreditedAdvancedFilters.establishmentType);
+      const matchesIssuedYear =
+        accreditedAdvancedFilters.issuedDateRange ||
+        !accreditedAdvancedFilters.issuedYear ||
+        yearFromValue(record.approvedAt || record.dateIssued || record.date_issued) ===
+          accreditedAdvancedFilters.issuedYear.trim();
+      const matchesIssuedDateRange =
+        !accreditedAdvancedFilters.issuedDateRange ||
+        dateInRange(
+          record.approvedAt || record.dateIssued || record.date_issued,
+          accreditedAdvancedFilters.issuedStartDate,
+          accreditedAdvancedFilters.issuedEndDate,
+        );
+      const matchesExpiryYear =
+        accreditedAdvancedFilters.expiryDateRange ||
+        !accreditedAdvancedFilters.expiryYear ||
+        yearFromValue(record.expiry || record.expiry_date) ===
+          accreditedAdvancedFilters.expiryYear.trim();
+      const matchesExpiryDateRange =
+        !accreditedAdvancedFilters.expiryDateRange ||
+        dateInRange(
+          record.expiry || record.expiry_date,
+          accreditedAdvancedFilters.expiryStartDate,
+          accreditedAdvancedFilters.expiryEndDate,
+        );
+      const matchesExpiryWindow =
+        !accreditedAdvancedFilters.expiringSoonOnly ||
+        isExpiringSoon(record.expiry || record.expiry_date, status);
 
       return (
+        textMatches &&
         matchesStatus &&
-        matchesYear &&
-        matchesMonth &&
-        (!normalizedQuery || searchText.includes(normalizedQuery))
+        matchesEstablishmentType &&
+        matchesIssuedYear &&
+        matchesIssuedDateRange &&
+        matchesExpiryYear &&
+        matchesExpiryDateRange &&
+        matchesExpiryWindow
       );
     });
-  }, [
-    accreditedRecords,
-    accreditedQuery,
-    accreditedStatusFilter,
-    accreditedYearFilter,
-    accreditedMonthFilter,
-  ]);
+  }, [accreditedRecords, accreditedAdvancedFilters]);
 
-  const accreditedYears = useMemo(() => {
-    const years = accreditedRecords
-      .map((record) => yearFromValue(record.approvedAt) || yearFromValue(record.expiry))
-      .filter(Boolean);
-
-    return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
+  const establishmentTypes = useMemo(() => {
+    return [...new Set(accreditedRecords.map((record) => record.type).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
   }, [accreditedRecords]);
 
   const metrics = useMemo(() => {
-    const pending = applications.filter((item) => item.status === "Pending").length;
+    const pending = applications.filter((item) => item.status === "Application Received").length;
     const activeReview = applications.filter((item) =>
-      ["For Review", "Under Review", "For Inspection"].includes(item.status),
+      ["Under Review", "For Payment", "For Payment Verification", "Payment Verified"].includes(item.status),
     ).length;
     const approved = applications.filter((item) =>
-      ["Approved", "Released", "Completed"].includes(item.status),
+      ["Completed"].includes(item.status),
     ).length;
     const flagged = applications.filter((item) =>
-      ["Rejected", "Denied"].includes(item.status),
+      ["Rejected Application", "Rejected Proof of Payment"].includes(item.status),
     ).length;
 
     return { pending, activeReview, approved, flagged };
@@ -718,8 +997,9 @@ export default function DashboardHub() {
   const statusOptions = [
     { value: "All", label: "All statuses" },
     { value: "ReviewGroup", label: "In review" },
-    { value: "ApprovedGroup", label: "Approved / released" },
-    { value: "FlaggedGroup", label: "Rejected / denied" },
+    { value: "ApprovedGroup", label: "Completed" },
+    { value: "FlaggedGroup", label: "Rejected" },
+    { value: "Application Received", label: "Application Received" },
     ...STATUSES.map((status) => ({ value: status, label: status })),
   ];
   const yearOptions = [
@@ -730,17 +1010,14 @@ export default function DashboardHub() {
     { value: "All", label: "All months" },
     ...MONTHS.map(([value, label]) => ({ value, label })),
   ];
-  const accreditedStatusOptions = [
-    { value: "All", label: "All statuses" },
-    { value: "Active", label: "Active" },
-    { value: "Expired", label: "Expired" },
-    { value: "Suspended", label: "Suspended" },
-    { value: "Revoked", label: "Revoked" },
-  ];
-  const accreditedYearOptions = [
-    { value: "All", label: "All years" },
-    ...accreditedYears.map((year) => ({ value: year, label: year })),
-  ];
+  function updateAccreditedAdvancedFilter(key, value) {
+    setAccreditedAdvancedFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function clearAccreditedAdvancedFilters() {
+    setAccreditedAdvancedFilters(EMPTY_ACCREDITED_ADVANCED_FILTERS);
+  }
+
   function handleStatusChangeRequest(nextStatus) {
     if (isViewOnlyLocked) {
       setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
@@ -794,6 +1071,13 @@ export default function DashboardHub() {
             : "Accredited sheet did not sync.",
         );
       }
+      if (nextStatus === "For Payment") {
+        effectMessages.push(
+          json.effects?.onlinePayment
+            ? "Online Payment sheet synced."
+            : "Online Payment sheet did not sync.",
+        );
+      }
       effectMessages.push(
         json.effects?.applicantEmail
           ? "Applicant emailed."
@@ -825,8 +1109,11 @@ export default function DashboardHub() {
     }
     if (!selectedApplication || !pendingStatus) return;
 
-    if (pendingStatus === "Rejected" && !pendingRemarks.trim()) {
-      setError("Remarks are required when rejecting an application.");
+    if (
+      ["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) &&
+      !pendingRemarks.trim()
+    ) {
+      setError("Remarks are required when rejecting an application or proof of payment.");
       return;
     }
 
@@ -866,14 +1153,14 @@ export default function DashboardHub() {
     );
   }
 
-  function exportAccredited() {
+  function exportAccredited(rows = filteredAccreditedRecords) {
     const parts = exportCsv({
       filenameBase: "mtv-accredited",
       columns: ACCREDITED_EXPORT_COLUMNS,
-      rows: filteredAccreditedRecords,
+      rows,
     });
     setNotice(
-      `Exported ${filteredAccreditedRecords.length} filtered accredited records${parts > 1 ? ` into ${parts} files` : ""}.`,
+      `Exported ${rows.length} filtered accredited records${parts > 1 ? ` into ${parts} files` : ""}.`,
     );
   }
 
@@ -953,11 +1240,11 @@ export default function DashboardHub() {
           <section className={styles.section}>
             <div className={styles.metricsGrid}>
               <MetricCard
-                label="Pending"
+                label="Application Received"
                 value={loading ? "..." : metrics.pending}
                 helper="New submissions waiting for intake review."
                 tone="pendingTone"
-                onClick={() => openApplicationFilter("Pending")}
+                onClick={() => openApplicationFilter("Application Received")}
               />
               <MetricCard
                 label="In Review"
@@ -967,14 +1254,14 @@ export default function DashboardHub() {
                 onClick={() => openApplicationFilter("ReviewGroup")}
               />
               <MetricCard
-                label="Approved / Released"
+                label="Completed"
                 value={loading ? "..." : metrics.approved}
-                helper="Records ready for payment, release, or completion."
+                helper="Applications completed after final checking."
                 tone="approvedTone"
                 onClick={() => openApplicationFilter("ApprovedGroup")}
               />
               <MetricCard
-                label="Rejected / Denied"
+                label="Rejected"
                 value={loading ? "..." : metrics.flagged}
                 helper="Applications requiring closure or applicant correction."
                 tone="flaggedTone"
@@ -1131,94 +1418,31 @@ export default function DashboardHub() {
                 </Link>
               </div>
 
-              <div className={styles.toolbar}>
-                <div className={styles.searchBox}>
-                  <MagnifyingGlassIcon aria-hidden="true" />
-                  <input
-                    type="text"
-                    value={accreditedQuery}
-                    onChange={(event) => setAccreditedQuery(event.target.value)}
-                    placeholder="Search registration no., plate, establishment, owner..."
-                  />
-                </div>
-                <Dropdown
-                  id="accredited-status-filter"
-                  value={accreditedStatusFilter}
-                  options={accreditedStatusOptions}
-                  onChange={setAccreditedStatusFilter}
-                />
-                <Dropdown
-                  id="accredited-year-filter"
-                  value={accreditedYearFilter}
-                  options={accreditedYearOptions}
-                  onChange={setAccreditedYearFilter}
-                />
-                <Dropdown
-                  id="accredited-month-filter"
-                  value={accreditedMonthFilter}
-                  options={monthOptions}
-                  onChange={setAccreditedMonthFilter}
-                />
-                <button
-                  type="button"
-                  className={styles.exportButton}
-                  onClick={exportAccredited}
-                  disabled={filteredAccreditedRecords.length === 0}>
-                  <ArrowDownTrayIcon aria-hidden="true" />
-                  Export
-                </button>
-              </div>
-
-              <div className={styles.tableWrap}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th className={styles.noWrap}>Date Issued</th>
-                      <th>Owner</th>
-                      <th>Address</th>
-                      <th>Establishment Type</th>
-                      <th>Establishment Name</th>
-                      <th>Plate</th>
-                      <th className={styles.noWrap}>Registration No.</th>
-                      <th className={styles.noWrap}>Expiry</th>
-                      <th>Receipt No.</th>
-                      <th>Status</th>
-                      <th>Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAccreditedRecords.map((record) => (
-                      <tr key={`${record.reference}-${record.plate}`}>
-                        <td className={styles.noWrap}>
-                          {formatDate(record.approvedAt)}
-                        </td>
-                        <td>{record.owner || "Not provided"}</td>
-                        <td>{record.address || "Not provided"}</td>
-                        <td>{record.type || "Not provided"}</td>
-                        <td>{record.business || "Not provided"}</td>
-                        <td>
-                          <strong>{record.plate || "No plate"}</strong>
-                        </td>
-                        <td className={styles.noWrap}>
-                          {record.reference || "No registration no."}
-                        </td>
-                        <td className={styles.noWrap}>
-                          {formatDate(record.expiry)}
-                        </td>
-                        <td>{record.receiptNo || "Not provided"}</td>
-                        <td>
-                          <StatusTag status={record.status || "Active"} />
-                        </td>
-                        <td>{record.remarks || "Not provided"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!loading && filteredAccreditedRecords.length === 0 ? (
-                  <p className={styles.emptyState}>No accredited records found.</p>
-                ) : null}
-                {loading ? <div className="spinner" /> : null}
-              </div>
+              <DataTable
+                title="Accredited MTVs - Central Luzon Region"
+                columns={ACCREDITED_TABLE_COLUMNS}
+                data={filteredAccreditedRecords}
+                loading={loading}
+                emptyText="No accredited records found."
+                toolbarActions={({ filteredRows }) => (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.advancedButton}
+                      onClick={() => setAccreditedAdvancedOpen(true)}>
+                      Advanced Search
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.exportButton}
+                      onClick={() => exportAccredited(filteredRows)}
+                      disabled={loading || filteredRows.length === 0}>
+                      <ArrowDownTrayIcon aria-hidden="true" />
+                      Export CSV
+                    </button>
+                  </>
+                )}
+              />
             </div>
           </section>
         )}
@@ -1476,6 +1700,232 @@ export default function DashboardHub() {
         </div>
       ) : null}
 
+      {accreditedAdvancedOpen ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setAccreditedAdvancedOpen(false);
+          }}>
+          <div
+            className={styles.searchModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="accredited-advanced-search-title">
+            <span className={styles.modalKicker}>Accredited MTVs</span>
+            <h2 id="accredited-advanced-search-title">Advanced Search</h2>
+            <div className={styles.filterGrid}>
+              <label>
+                <span>Registration No.</span>
+                <input
+                  type="text"
+                  value={accreditedAdvancedFilters.reference}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("reference", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Plate No.</span>
+                <input
+                  type="text"
+                  value={accreditedAdvancedFilters.plate}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("plate", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Establishment Name</span>
+                <input
+                  type="text"
+                  value={accreditedAdvancedFilters.establishment}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("establishment", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Establishment Type</span>
+                <select
+                  value={accreditedAdvancedFilters.establishmentType}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("establishmentType", event.target.value)
+                  }>
+                  <option value="All">All establishment types</option>
+                  {establishmentTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Owner</span>
+                <input
+                  type="text"
+                  value={accreditedAdvancedFilters.owner}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("owner", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Status</span>
+                <select
+                  value={accreditedAdvancedFilters.status}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("status", event.target.value)
+                  }>
+                  <option value="All">All statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Suspended">Suspended</option>
+                  <option value="Revoked">Revoked</option>
+                </select>
+              </label>
+              <div className={styles.dateFilterField}>
+                <div className={styles.fieldHeader}>
+                  <span>Date Issued</span>
+                  <label className={styles.inlineCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={accreditedAdvancedFilters.issuedDateRange}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter(
+                          "issuedDateRange",
+                          event.target.checked,
+                        )
+                      }
+                    />
+                    <span>Date range</span>
+                  </label>
+                </div>
+                {accreditedAdvancedFilters.issuedDateRange ? (
+                  <div className={styles.dateRangeInputs}>
+                    <input
+                      type="date"
+                      aria-label="Date issued start date"
+                      value={accreditedAdvancedFilters.issuedStartDate}
+                      onClick={openNativeDatePicker}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter("issuedStartDate", event.target.value)
+                      }
+                    />
+                    <input
+                      type="date"
+                      aria-label="Date issued end date"
+                      value={accreditedAdvancedFilters.issuedEndDate}
+                      onClick={openNativeDatePicker}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter("issuedEndDate", event.target.value)
+                      }
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength="4"
+                    placeholder="2026"
+                    value={accreditedAdvancedFilters.issuedYear}
+                    onChange={(event) =>
+                      updateAccreditedAdvancedFilter(
+                        "issuedYear",
+                        event.target.value.replace(/\D/g, ""),
+                      )
+                    }
+                  />
+                )}
+              </div>
+              <div className={styles.dateFilterField}>
+                <div className={styles.fieldHeader}>
+                  <span>Expiry Date</span>
+                  <label className={styles.inlineCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={accreditedAdvancedFilters.expiryDateRange}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter(
+                          "expiryDateRange",
+                          event.target.checked,
+                        )
+                      }
+                    />
+                    <span>Date range</span>
+                  </label>
+                </div>
+                {accreditedAdvancedFilters.expiryDateRange ? (
+                  <div className={styles.dateRangeInputs}>
+                    <input
+                      type="date"
+                      aria-label="Expiry start date"
+                      value={accreditedAdvancedFilters.expiryStartDate}
+                      onClick={openNativeDatePicker}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter("expiryStartDate", event.target.value)
+                      }
+                    />
+                    <input
+                      type="date"
+                      aria-label="Expiry end date"
+                      value={accreditedAdvancedFilters.expiryEndDate}
+                      onClick={openNativeDatePicker}
+                      onChange={(event) =>
+                        updateAccreditedAdvancedFilter("expiryEndDate", event.target.value)
+                      }
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength="4"
+                    placeholder="2026"
+                    value={accreditedAdvancedFilters.expiryYear}
+                    onChange={(event) =>
+                      updateAccreditedAdvancedFilter(
+                        "expiryYear",
+                        event.target.value.replace(/\D/g, ""),
+                      )
+                    }
+                  />
+                )}
+              </div>
+              <div className={styles.checkboxField}>
+                <input
+                  id="dashboard-expiring-soon-only"
+                  type="checkbox"
+                  checked={accreditedAdvancedFilters.expiringSoonOnly}
+                  onChange={(event) =>
+                    updateAccreditedAdvancedFilter("expiringSoonOnly", event.target.checked)
+                  }
+                />
+                <label
+                  className={styles.checkboxLabel}
+                  htmlFor="dashboard-expiring-soon-only">
+                  Expiring soon only
+                </label>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={clearAccreditedAdvancedFilters}>
+                Clear filters
+              </button>
+              <button
+                type="button"
+                className={styles.confirmButton}
+                onClick={() => setAccreditedAdvancedOpen(false)}>
+                Apply filters
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {pendingStatus && selectedApplication ? (
         <div
           className={styles.modalOverlay}
@@ -1497,18 +1947,20 @@ export default function DashboardHub() {
               notified by email.
             </p>
             <label className={styles.modalLabel} htmlFor="status-remarks">
-              Remarks {pendingStatus === "Rejected" ? <span className={styles.requiredMark}>*</span> : null}
+              Remarks {["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
             </label>
             <textarea
               id="status-remarks"
               className={styles.modalTextarea}
-              required={pendingStatus === "Rejected"}
+              required={["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus)}
               disabled={isViewOnlyLocked}
               value={pendingRemarks}
               onChange={(event) => setPendingRemarks(event.target.value)}
               placeholder={
-                pendingStatus === "Rejected"
+                pendingStatus === "Rejected Application"
                   ? "Tell the applicant what information or documents must be amended."
+                  : pendingStatus === "Rejected Proof of Payment"
+                    ? "Tell the applicant what proof of payment issue must be corrected."
                   : "Add optional notes for this status update."
               }
               rows={4}
@@ -1527,7 +1979,7 @@ export default function DashboardHub() {
                 disabled={
                   saving ||
                   isViewOnlyLocked ||
-                  (pendingStatus === "Rejected" && !pendingRemarks.trim())
+                  (["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) && !pendingRemarks.trim())
                 }
                 onClick={confirmStatusChange}>
                 {saving ? "Updating..." : "Confirm update"}

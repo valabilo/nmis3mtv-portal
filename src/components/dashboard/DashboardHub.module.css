@@ -217,8 +217,27 @@
 }
 
 .main {
+  position: relative;
   min-width: 0;
   padding: 0 28px 32px;
+}
+
+.main::before {
+  content: "";
+  position: fixed;
+  right: clamp(24px, 7vw, 110px);
+  bottom: clamp(24px, 8vh, 96px);
+  z-index: 0;
+  width: min(430px, 48vw);
+  aspect-ratio: 1;
+  background: url("/nmis-logo.svg") center / contain no-repeat;
+  opacity: .045;
+  pointer-events: none;
+}
+
+.main > * {
+  position: relative;
+  z-index: 1;
 }
 
 .topbar {
@@ -430,6 +449,7 @@
 }
 
 .panel {
+  min-width: 0;
   padding: 16px;
 }
 
@@ -458,6 +478,7 @@
 .panelHeader button,
 .statusEditor > div > button,
 .openFolder,
+.advancedButton,
 .exportButton {
   display: inline-flex;
   align-items: center;
@@ -481,6 +502,7 @@
 .panelHeader button:hover,
 .statusEditor > div > button:hover,
 .openFolder:hover,
+.advancedButton:hover,
 .exportButton:hover {
   background: #185a38;
   border-color: #185a38;
@@ -498,6 +520,27 @@
   width: 15px;
   height: 15px;
   stroke-width: 1.8;
+}
+
+.statusStack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.expiringBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 9px;
+  white-space: nowrap;
 }
 
 .compactList {
@@ -643,7 +686,7 @@
   right: 0;
   left: 0;
   z-index: 720;
-  display: none;
+  display: grid;
   max-height: 180px;
   overflow-y: auto;
   background: #ffffff;
@@ -651,10 +694,6 @@
   border-radius: 7px;
   box-shadow: 0 14px 30px rgba(17, 24, 39, .16);
   padding: 4px;
-}
-
-.dropdown:focus-within .dropdownMenu {
-  display: grid;
 }
 
 .dropdownOption,
@@ -1151,11 +1190,137 @@
   padding: 22px;
 }
 
+.searchModal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--dash-line);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(17, 24, 39, .2);
+  padding: 22px;
+}
+
 .confirmModal h2 {
   color: var(--dash-text);
   font-size: 1.12rem;
   font-weight: 620;
   margin-bottom: 8px;
+}
+
+.searchModal h2 {
+  color: var(--dash-text);
+  font-size: 1.12rem;
+  font-weight: 620;
+  margin-bottom: 16px;
+}
+
+.modalKicker {
+  display: block;
+  color: var(--dash-accent);
+  font-size: .72rem;
+  font-weight: 760;
+  letter-spacing: .08em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.filterGrid label {
+  display: grid;
+  gap: 6px;
+}
+
+.filterGrid label > span,
+.fieldHeader > span {
+  color: var(--dash-muted);
+  font-size: .76rem;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.filterGrid input,
+.filterGrid select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--dash-line-strong);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--dash-text);
+  font-family: inherit;
+  font-size: .86rem;
+  padding: 8px 10px;
+}
+
+.filterGrid input:focus,
+.filterGrid select:focus {
+  border-color: var(--dash-accent);
+  outline: 3px solid rgba(31, 111, 70, .12);
+}
+
+.dateFilterField {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inlineCheckbox {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px !important;
+  color: var(--dash-muted);
+  cursor: pointer;
+  font-size: .72rem;
+  font-weight: 650;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.inlineCheckbox input {
+  flex: 0 0 auto;
+  min-height: auto;
+  width: auto;
+}
+
+.dateRangeInputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.checkboxField {
+  align-content: end;
+  align-self: end;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-self: start;
+  min-height: 68px;
+}
+
+.checkboxField input {
+  align-self: center;
+}
+
+.checkboxLabel {
+  align-self: center;
+  color: var(--dash-muted);
+  cursor: pointer;
+  font-size: .76rem;
+  font-weight: 720;
+  line-height: 1.35;
+  text-transform: uppercase;
 }
 
 .confirmModal p {
@@ -1418,6 +1583,17 @@
 
   .modalActions {
     flex-direction: column-reverse;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .advancedButton,
+  .exportButton,
+  .cancelButton,
+  .confirmButton {
+    width: 100%;
   }
 
 }

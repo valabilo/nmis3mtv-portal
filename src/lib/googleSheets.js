@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { buildOrderOfPaymentData } from "@/lib/orderOfPayment";
 
 // ── Auth ──────────────────────────────────────────────────────────
 function getSheetsClient() {
@@ -250,6 +251,31 @@ export async function getReferenceIssuances() {
   return readSheet("Reference Issuances");
 }
 
+export async function getOnlinePaymentRecord(refNumber) {
+  const normalizedRef = String(refNumber || "").trim().toUpperCase();
+  if (!normalizedRef) return null;
+
+  let rows = [];
+  try {
+    rows = await readSheet("Online Payment");
+  } catch (error) {
+    if (
+      error.message?.includes("Unable to parse range") ||
+      error.message?.includes("Requested entity was not found")
+    ) {
+      return null;
+    }
+    throw error;
+  }
+
+  return (
+    rows.find(
+      (row) =>
+        String(row.reference_number || "").trim().toUpperCase() === normalizedRef,
+    ) || null
+  );
+}
+
 export async function getEstablishmentTypes() {
   const rows = await readSheet("EstablishmentType");
   return rows
@@ -366,6 +392,26 @@ const APPLICATION_HEADERS = [
   "amendment_ref",
 ];
 
+const ONLINE_PAYMENT_HEADERS = [
+  "Code",
+  "Serial No.",
+  "Date issued",
+  "Name of payor",
+  "Address/Office of Payor",
+  "Amount",
+  "Purpose",
+  "Payment Code",
+  "Issued Date",
+  "Reference Number",
+  "Date of Payment",
+  "Payment Reference Number",
+  "Payment Submitted At",
+  "Payment Verified At",
+  "Verification Source",
+  "Proof of Payment File ID",
+  "Proof of Payment File Name",
+];
+
 function parseStatusHistory(value) {
   if (!value) return [];
 
@@ -383,7 +429,7 @@ function statusHistoryForRow(row) {
 
   return [
     {
-      status: row.status || "Pending",
+      status: row.status || "Application Received",
       remarks: row.remarks || "Application submitted.",
       timestamp: row.timestamp || new Date().toISOString(),
     },
@@ -392,7 +438,7 @@ function statusHistoryForRow(row) {
 
 function buildApplicationRowValues(headers, data, existing = {}, overrides = {}) {
   const timestamp = overrides.timestamp ?? new Date().toISOString();
-  const status = overrides.status ?? "Pending";
+  const status = overrides.status ?? "Application Received";
   const remarks = overrides.remarks ?? "";
   const statusHistory =
     overrides.statusHistory ??
@@ -469,15 +515,15 @@ export async function updateApplication(data) {
   const nextHistory = [
     ...previousHistory,
     {
-      status: "Pending",
-      previousStatus: existing.status || "Pending",
+      status: "Application Received",
+      previousStatus: existing.status || "Application Received",
       remarks: "Amendment submitted.",
       timestamp: now,
     },
   ];
   const rowValues = buildApplicationRowValues(headers, data, existing, {
     timestamp: now,
-    status: "Pending",
+    status: "Application Received",
     remarks: "",
     statusHistory: JSON.stringify(nextHistory),
   });
@@ -500,15 +546,14 @@ export async function updateApplication(data) {
 
 export async function updateApplicationStatus(refNumber, status, remarks = "") {
   const allowedStatuses = new Set([
-    "Pending",
-    "For Review",
+    "Application Received",
     "Under Review",
-    "For Inspection",
-    "Approved",
-    "Released",
+    "For Payment",
+    "Rejected Application",
+    "For Payment Verification",
+    "Payment Verified",
+    "Rejected Proof of Payment",
     "Completed",
-    "Rejected",
-    "Denied",
   ]);
 
   if (!allowedStatuses.has(status)) {
@@ -535,7 +580,7 @@ export async function updateApplicationStatus(refNumber, status, remarks = "") {
   const previousHistory = statusHistoryForRow(row);
   const statusEntry = {
     status,
-    previousStatus: row.status || "Pending",
+    previousStatus: row.status || "Application Received",
     remarks: trimmedRemarks,
     timestamp: new Date().toISOString(),
   };
@@ -572,12 +617,191 @@ export async function updateApplicationStatus(refNumber, status, remarks = "") {
 
   const updated = {
     ...row,
-    previousStatus: row.status || "Pending",
+    previousStatus: row.status || "Application Received",
     remarks: trimmedRemarks,
     status,
     status_history: JSON.stringify(nextHistory),
   };
+
+  if (status === "Payment Verified") {
+    try {
+      await ensureHeaders("Online Payment", ONLINE_PAYMENT_HEADERS);
+      const paymentSheet = await readSheetWithRowNumbers("Online Payment");
+      const paymentRow = paymentSheet.rows.find(
+        (item) =>
+          String(item.reference_number || "").trim().toUpperCase() === normalizedRef,
+      );
+      if (paymentRow) {
+        const verifiedIndex = paymentSheet.headers.indexOf("payment_verified_at");
+        const sourceIndex = paymentSheet.headers.indexOf("verification_source");
+        const paymentData = [];
+
+        if (verifiedIndex >= 0) {
+          paymentData.push({
+            range: `${quoteSheetName("Online Payment")}!${columnLabel(verifiedIndex + 1)}${paymentRow._rowNumber}`,
+            values: [[new Date().toISOString()]],
+          });
+        }
+
+        if (sourceIndex >= 0) {
+          paymentData.push({
+            range: `${quoteSheetName("Online Payment")}!${columnLabel(sourceIndex + 1)}${paymentRow._rowNumber}`,
+            values: [["NMIS manual verification"]],
+          });
+        }
+
+        if (paymentData.length) {
+          await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              valueInputOption: "USER_ENTERED",
+              data: paymentData,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Online Payment verification timestamp failed:", error);
+    }
+  }
+
   return updated;
+}
+
+export async function upsertOnlinePaymentFromApplication(application) {
+  await ensureHeaders("Online Payment", ONLINE_PAYMENT_HEADERS);
+
+  const { headers, rows } = await readSheetWithRowNumbers("Online Payment");
+  if (!headers.length) {
+    throw new Error("Online Payment sheet is missing a header row.");
+  }
+
+  const normalizedRef = String(application.ref_number || application.reference || "")
+    .trim()
+    .toUpperCase();
+  if (!normalizedRef) throw new Error("Application reference number is missing.");
+
+  const existing = rows.find(
+    (row) =>
+      String(row.reference_number || "").trim().toUpperCase() === normalizedRef,
+  );
+  const payment = buildOrderOfPaymentData(application, existing || {});
+  const dateIssued = payment.date.toISOString().slice(0, 10);
+  const valuesByHeader = {
+    code: payment.codeNo,
+    serial_no: payment.serialNo,
+    date_issued: dateIssued,
+    name_of_payor: payment.owner,
+    address_office_of_payor: payment.address,
+    amount: payment.amount.toFixed(2),
+    purpose: payment.purpose,
+    payment_code: payment.paymentCode,
+    issued_date: dateIssued,
+    reference_number: normalizedRef,
+    date_of_payment: existing?.date_of_payment || "",
+  };
+  const rowValues = headers.map(
+    (header) => valuesByHeader[header] ?? existing?.[header] ?? "",
+  );
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  if (existing) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${quoteSheetName("Online Payment")}!A${existing._rowNumber}:${columnLabel(headers.length)}${existing._rowNumber}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [rowValues],
+      },
+    });
+  } else {
+    await appendRow("Online Payment", rowValues);
+  }
+
+  return Object.fromEntries(headers.map((header, index) => [header, rowValues[index] ?? ""]));
+}
+
+export async function recordApplicantPaymentReference(refNumber, paymentReference, proofFile = {}) {
+  const normalizedRef = String(refNumber || "").trim().toUpperCase();
+  const normalizedPaymentReference = String(paymentReference || "").trim();
+
+  if (!normalizedRef) throw new Error("Application reference number is required.");
+  if (!normalizedPaymentReference) throw new Error("Payment reference number is required.");
+
+  await ensureHeaders("Applications", APPLICATION_HEADERS);
+  await ensureHeaders("Online Payment", ONLINE_PAYMENT_HEADERS);
+
+  const application = await getApplicationByRef(normalizedRef);
+  if (!application) throw new Error("Application not found.");
+
+  const currentStatus = String(application.status || "").trim();
+  if (!["For Payment", "Rejected Proof of Payment", "For Payment Verification"].includes(currentStatus)) {
+    throw new Error("Proof of payment can only be submitted for applications awaiting payment.");
+  }
+
+  const { headers, rows } = await readSheetWithRowNumbers("Online Payment");
+  const existing = rows.find(
+    (row) =>
+      String(row.reference_number || "").trim().toUpperCase() === normalizedRef,
+  );
+  const payment = buildOrderOfPaymentData(application, existing || {});
+  const now = new Date().toISOString();
+  const dateIssued = payment.date.toISOString().slice(0, 10);
+  const dateOfPayment = now.slice(0, 10);
+  const valuesByHeader = {
+    code: payment.codeNo,
+    serial_no: payment.serialNo,
+    date_issued: existing?.date_issued || dateIssued,
+    name_of_payor: payment.owner,
+    address_office_of_payor: payment.address,
+    amount: payment.amount.toFixed(2),
+    purpose: payment.purpose,
+    payment_code: payment.paymentCode,
+    issued_date: existing?.issued_date || dateIssued,
+    reference_number: normalizedRef,
+    date_of_payment: existing?.date_of_payment || dateOfPayment,
+    payment_reference_number: normalizedPaymentReference,
+    payment_submitted_at: now,
+    payment_verified_at: "",
+    verification_source: "Applicant portal",
+    proof_of_payment_file_id: proofFile.fileId || existing?.proof_of_payment_file_id || "",
+    proof_of_payment_file_name: proofFile.fileName || existing?.proof_of_payment_file_name || "",
+  };
+  const rowValues = headers.map(
+    (header) => valuesByHeader[header] ?? existing?.[header] ?? "",
+  );
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+
+  if (existing) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${quoteSheetName("Online Payment")}!A${existing._rowNumber}:${columnLabel(headers.length)}${existing._rowNumber}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [rowValues],
+      },
+    });
+  } else {
+    await appendRow("Online Payment", rowValues);
+  }
+
+  const updatedApplication =
+    currentStatus === "For Payment Verification"
+      ? application
+      : await updateApplicationStatus(
+          normalizedRef,
+          "For Payment Verification",
+          `Proof of payment submitted. Payment reference: ${normalizedPaymentReference}`,
+        );
+
+  return {
+    application: updatedApplication,
+    onlinePayment: Object.fromEntries(
+      headers.map((header, index) => [header, rowValues[index] ?? ""]),
+    ),
+  };
 }
 
 const ACCREDITED_HEADERS = [
@@ -590,9 +814,45 @@ const ACCREDITED_HEADERS = [
   "REGISTRATION NO.",
   "EXPIRY",
   "RECEIPT NO.",
-  "STATUS",
+  "Validity",
   "REMARKS",
+  "Status",
 ];
+
+const REGISTRATION_PREFIX = "NMIS-III-";
+const REGISTRATION_SEQUENCE_FLOOR = 2593;
+
+function registrationSequence(value) {
+  const match = String(value || "").match(/^NMIS-III-(\d+)$/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function formatRegistrationNumber(sequence) {
+  return `${REGISTRATION_PREFIX}${String(sequence).padStart(4, "0")}`;
+}
+
+function existingRegistrationNumber(row) {
+  const candidates = [row?.registration_no, row?.ref_number, row?.reference];
+  for (const candidate of candidates) {
+    const sequence = registrationSequence(candidate);
+    if (sequence) return formatRegistrationNumber(sequence);
+  }
+
+  return "";
+}
+
+function nextRegistrationNumber(rows) {
+  const latest = rows.reduce(
+    (max, row) =>
+      Math.max(
+        max,
+        registrationSequence(row.registration_no || row.ref_number || row.reference),
+      ),
+    REGISTRATION_SEQUENCE_FLOOR,
+  );
+
+  return formatRegistrationNumber(latest + 1);
+}
 
 export async function upsertAccreditedFromApplication(application) {
   await ensureHeaders("Accredited", ACCREDITED_HEADERS);
@@ -616,6 +876,7 @@ export async function upsertAccreditedFromApplication(application) {
   const now = new Date();
   const expiry = new Date(now);
   expiry.setFullYear(now.getFullYear() + 1);
+  const registrationNo = existingRegistrationNumber(existing) || nextRegistrationNumber(rows);
 
   const valuesByHeader = {
     date_issued: now.toISOString().slice(0, 10),
@@ -624,11 +885,14 @@ export async function upsertAccreditedFromApplication(application) {
     establishment_type: application.btype || "",
     establishment_name: application.bname || application.meat_establishment || "",
     plate_no: application.plate || "",
-    registration_no: application.ref_number || "",
+    registration_no: registrationNo,
     expiry: expiry.toISOString().slice(0, 10),
     receipt_no: "",
+    validity: "",
+    valid: "",
     status: "Active",
-    ref_number: application.ref_number || "",
+    ref_number: registrationNo,
+    reference: registrationNo,
     plate: application.plate || "",
     business: application.bname || application.meat_establishment || "",
     business_name: application.bname || application.meat_establishment || "",
@@ -645,6 +909,7 @@ export async function upsertAccreditedFromApplication(application) {
     email: application.email || "",
     contact: application.contact || "",
     ghp_cert_number: application.ghp_cert_number || "",
+    remarks: "",
   };
 
   const rowValues = headers.map((header) => valuesByHeader[header] ?? existing?.[header] ?? "");

@@ -5,6 +5,7 @@ import {
   getCertificateIssuance,
   getGHPCompletions,
   upsertAccreditedFromApplication,
+  upsertOnlinePaymentFromApplication,
   updateApplicationStatus,
 } from "@/lib/googleSheets";
 import { listFolderFiles } from "@/lib/driveService";
@@ -30,7 +31,7 @@ function normalizeApplication(row) {
   if (!statusHistory.length) {
     statusHistory = [
       {
-        status: row.status || "Pending",
+        status: row.status || "Application Received",
         remarks: row.remarks || "",
         timestamp: row.timestamp || "",
       },
@@ -57,7 +58,7 @@ function normalizeApplication(row) {
     businessName: row.bname || "",
     businessType: row.btype || "",
     businessAddress: row.baddress || "",
-    status: row.status || "Pending",
+    status: row.status || "Application Received",
     remarks: row.remarks || "",
     statusHistory,
     folderId,
@@ -102,7 +103,8 @@ function normalizeAccredited(row) {
     owner: firstValue(row, ["owner", "applicant", "registered_owner", "name", "name_of_owner"]),
     address: firstValue(row, ["address"]),
     telNo: firstValue(row, ["tel_no", "telephone_no", "contact", "phone"]),
-    expiry: firstValue(row, ["expiry", "expiry_date", "expiration_date", "validity", "valid", "valid_until"]),
+    expiry: firstValue(row, ["expiry", "expiry_date", "expiration_date", "valid_until"]),
+    validity: firstValue(row, ["validity", "valid"]),
     stickerNo: firstValue(row, ["sticker_no", "sticker_number"]),
     receiptDate: firstValue(row, ["receipt_date", "or_date"]),
     receiptNo: firstValue(row, ["receipt_no", "receipt_number", "or_number"]),
@@ -242,10 +244,11 @@ export async function PATCH(request) {
 
     const updated = await updateApplicationStatus(reference, status, remarks);
     const application = normalizeApplication(updated);
-    application.previousStatus = updated.previousStatus || "Pending";
+    application.previousStatus = updated.previousStatus || "Application Received";
 
     const effects = {
       accredited: status !== "Completed" ? null : false,
+      onlinePayment: status !== "For Payment" ? null : false,
       applicantEmail: false,
       nmisEmail: false,
       errors: [],
@@ -263,14 +266,28 @@ export async function PATCH(request) {
       }
     }
 
-    try {
-      await sendApplicationStatusUpdateToApplicant({ ...application, siteUrl });
-      effects.applicantEmail = true;
-    } catch (emailError) {
-      console.error("Applicant status update email failed:", emailError);
-      effects.errors.push(
-        `Applicant email failed: ${emailError.message || "Unknown error"}`,
-      );
+    if (status === "For Payment") {
+      try {
+        application.onlinePayment = await upsertOnlinePaymentFromApplication(updated);
+        effects.onlinePayment = true;
+      } catch (syncError) {
+        console.error("Online Payment sync failed:", syncError);
+        effects.errors.push(
+          `Online Payment sync failed: ${syncError.message || "Unknown error"}`,
+        );
+      }
+    }
+
+    if (status !== "Under Review") {
+      try {
+        await sendApplicationStatusUpdateToApplicant({ ...application, siteUrl });
+        effects.applicantEmail = true;
+      } catch (emailError) {
+        console.error("Applicant status update email failed:", emailError);
+        effects.errors.push(
+          `Applicant email failed: ${emailError.message || "Unknown error"}`,
+        );
+      }
     }
 
     try {

@@ -272,6 +272,7 @@ export default function ApplicationForm() {
   const formRef = useRef(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM);
+  const [originalAmendmentData, setOriginalAmendmentData] = useState(null);
   const [files, setFiles] = useState({});
   const [agree, setAgree] = useState(false);
   const [refNumber, setRefNumber] = useState("");
@@ -289,6 +290,7 @@ export default function ApplicationForm() {
   const [optimisticMessage, setOptimisticMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState({}); // docId → 0-100
   const [draftReady, setDraftReady] = useState(false);
+  const [amendmentClosedMessage, setAmendmentClosedMessage] = useState("");
   const [, startTransition] = useTransition();
 
   const { toastState, showToast } = useToast();
@@ -365,6 +367,7 @@ export default function ApplicationForm() {
 
     async function loadAmendment() {
       setLoadingAmendment(true);
+      setAmendmentClosedMessage("");
       const draftMatchesAmendment =
         draft?.formData?.amendmentRef === normalizedAmendmentRef;
 
@@ -391,12 +394,27 @@ export default function ApplicationForm() {
         );
         const json = await res.json();
         if (!res.ok || !json.success) {
+          if (res.status === 409 && json.code === "AMENDMENT_ALREADY_SUBMITTED") {
+            setAmendmentClosedMessage(
+              json.error ||
+                "The record has been amended and already submitted. Please wait for NMIS to verify the record.",
+            );
+            setStep(1);
+            setAgree(false);
+            return;
+          }
+
           throw new Error(json.error || "Unable to load amendment details.");
         }
         if (cancelled) return;
 
         const application = json.application || {};
         setAmendmentFolderId(application.folderId || "");
+        setOriginalAmendmentData({
+          ...application,
+          applicationType: "Amendment",
+          amendmentRef: normalizedAmendmentRef,
+        });
         setFormData((prev) => ({
           ...prev,
           ...application,
@@ -427,11 +445,14 @@ export default function ApplicationForm() {
         ...draft.formData,
         amendmentRef: "",
       });
+      setOriginalAmendmentData(null);
       setStep(draft.step);
       setAgree(draft.agree);
     } else {
       setFormData(INITIAL_FORM);
+      setOriginalAmendmentData(null);
     }
+    setAmendmentClosedMessage("");
     setDraftReady(true);
 
     return () => {
@@ -698,6 +719,7 @@ export default function ApplicationForm() {
   function handleReset() {
     setStep(1);
     setFormData(INITIAL_FORM);
+    setOriginalAmendmentData(null);
     setFiles({});
     setAgree(false);
     setSubmitted(false);
@@ -715,6 +737,22 @@ export default function ApplicationForm() {
     );
 
   // ─── Weighted upload progress ───────────────────────────────────────────────
+  if (amendmentClosedMessage) {
+    return (
+      <>
+        <div className={styles.closedContainer} ref={formRef}>
+          <div className={styles.closedNotice}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong>Amendment already submitted</strong>
+              <p>{amendmentClosedMessage}</p>
+            </div>
+          </div>
+        </div>
+        <Toast {...toastState} />
+      </>
+    );
+  }
+
   const docEntries = Object.entries(files);
   let totalSize = 0;
   let uploadedSize = 0;
@@ -733,7 +771,7 @@ export default function ApplicationForm() {
     <>
       <div className={styles.container} ref={formRef}>
         {formData.amendmentRef ? (
-          <div className={styles.optimistic} style={{ marginBottom: 18 }}>
+          <div className={`${styles.optimistic} ${styles.amendmentNotice}`}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <strong>Amendment for {formData.amendmentRef}</strong>
               <p>
@@ -803,6 +841,7 @@ export default function ApplicationForm() {
         {step === 4 && (
           <Step4Review
             data={formData}
+            originalData={originalAmendmentData}
             files={files}
             submitting={submitting}
             onBack={() => goToStep(3)}

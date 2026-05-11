@@ -4,6 +4,31 @@ import { getApplicationByRef } from "@/lib/googleSheets";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function parseStatusHistory(value) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function hasSubmittedAmendment(row) {
+  const history = parseStatusHistory(row.status_history);
+  const latest = history[history.length - 1] || {};
+  const status = String(row.status || "").trim().toLowerCase();
+  const remarks = String(latest.remarks || row.remarks || "").trim().toLowerCase();
+
+  return status === "application received" && remarks.includes("amendment submitted");
+}
+
+function isAmendmentOpen(row) {
+  const status = String(row.status || "").trim().toLowerCase();
+  return status === "rejected application";
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -21,6 +46,18 @@ export async function GET(request) {
       return NextResponse.json(
         { success: false, error: "Application not found." },
         { status: 404 },
+      );
+    }
+
+    if (!isAmendmentOpen(row) || hasSubmittedAmendment(row)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "AMENDMENT_ALREADY_SUBMITTED",
+          error:
+            "The record has been amended and already submitted. Please wait for NMIS to verify the record.",
+        },
+        { status: 409 },
       );
     }
 

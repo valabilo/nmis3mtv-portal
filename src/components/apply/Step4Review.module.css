@@ -1,52 +1,401 @@
 /* components/apply/Step4Review.module.css */
 
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.blockTitle {
-  font-weight: 800;
-  color: var(--green);
-  margin-bottom: 10px;
-  font-size: 1rem;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--gray-100);
+.paper {
+  position: relative;
+  overflow: hidden;
+  width: min(760px, 100%);
+  margin: 0 auto 22px;
+  background: #ffffff;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 16px 42px rgba(16, 24, 40, .12);
+  color: #1f2933;
+  font-family: "Times New Roman", Times, serif;
   font-size: .9rem;
+  line-height: 1.25;
+  padding: 34px 42px 38px;
 }
-.row:last-child { border-bottom: none; }
 
-.rowLabel {
+.watermark {
+  position: absolute;
+  inset: 16% 16% auto;
+  height: 52%;
+  background: url("/nmis-logo.svg") center / contain no-repeat;
+  opacity: .12;
+  pointer-events: none;
+}
+
+.paper > *:not(.watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+.formHeader {
+  text-align: center;
+}
+
+.formHeader h3 {
+  color: #111827;
+  font-size: .88rem;
   font-weight: 700;
-  color: var(--gray-500);
-  min-width: 100px;
-  flex-shrink: 0;
+  letter-spacing: .08em;
+  line-height: 1.25;
+  margin: 0 0 12px;
+  text-transform: uppercase;
 }
 
-.rowValue { color: var(--gray-900); }
+.formHeader span {
+  display: block;
+}
 
-.docsBlock { margin-bottom: 8px; }
+.rule {
+  height: 1px;
+  background: #111827;
+  margin: 8px 0;
+}
+
+.typeBlock {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 14px;
+  margin: 8px 0;
+}
+
+.typeBlock > span,
+.lineField > span,
+.inlineLine > span {
+  color: #111827;
+  white-space: nowrap;
+}
+
+.typeBlock > div {
+  display: grid;
+  gap: 1px;
+}
+
+.checkboxLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox,
+.checkboxChecked {
+  position: relative;
+  display: inline-flex;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #111827;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.checkboxChecked::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: #111827;
+}
+
+.fieldStack {
+  display: grid;
+  gap: 4px;
+}
+
+.lineField,
+.inlineLine {
+  display: grid;
+  grid-template-columns: max-content minmax(80px, 1fr);
+  align-items: end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.wideField {
+  width: 100%;
+}
+
+.lineField strong,
+.inlineLine strong {
+  display: block;
+  min-height: 18px;
+  border-bottom: 1px solid #4b5563;
+  color: #111827;
+  font-family: var(--font-public-sans), Arial, sans-serif;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  padding: 0 5px 1px;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.sectionGroup {
+  display: grid;
+  gap: 3px;
+}
+
+.sectionGroup h4 {
+  color: #111827;
+  font-size: .9rem;
+  font-weight: 400;
+  margin: 0 0 2px;
+}
+
+.certification {
+  display: grid;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.certification p {
+  margin: 0;
+}
+
+.applicantSign,
+.nmisSignature,
+.copySignature {
+  display: grid;
+  justify-items: center;
+  margin-left: auto;
+  width: min(260px, 52%);
+  text-align: center;
+}
+
+.applicantSign strong,
+.nmisSignature strong,
+.copySignature strong {
+  display: block;
+  width: 100%;
+  min-height: 18px;
+  border-bottom: 1px solid #4b5563;
+  color: #111827;
+  font-family: var(--font-public-sans), Arial, sans-serif;
+  font-size: .82rem;
+  font-weight: 600;
+  padding: 0 5px 1px;
+}
+
+.applicantSign span,
+.nmisSignature span,
+.copySignature span {
+  font-weight: 700;
+}
+
+.applicantSign small,
+.nmisSignature small,
+.copySignature small {
+  color: #111827;
+  font-size: .72rem;
+  font-style: italic;
+}
+
+.nmisSection {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.nmisSection p,
+.applicantCopy p {
+  font-style: italic;
+  font-weight: 700;
+  margin: 0;
+}
+
+.nmisSignature {
+  margin: 4px auto 0;
+}
+
+.copyCut {
+  border-top: 1px dashed #111827;
+  margin: 14px 0 8px;
+}
+
+.applicantCopy {
+  display: grid;
+  gap: 10px;
+}
+
+.copySignature {
+  margin: 10px auto 0;
+}
+
+.docsBlock {
+  width: min(760px, 100%);
+  margin: 0 auto 8px;
+  background: #ffffff;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+}
+
+.docsTitle {
+  color: var(--green);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
 
 .docTags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
 }
 
-@media (max-width: 640px) {
-  .grid { grid-template-columns: 1fr; }
+.amendmentPanel {
+  width: min(820px, 100%);
+  margin: 0 auto 8px;
+  background: #ffffff;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  padding: 22px;
+}
+
+.amendmentHeader {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--gray-100);
+  margin-bottom: 18px;
+}
+
+.amendmentHeader span {
+  color: var(--gray-500);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .74rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.amendmentHeader strong {
+  color: var(--green-deep);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.changesBlock {
+  display: grid;
+  gap: 10px;
+}
+
+.changesBlock + .changesBlock {
+  border-top: 1px solid var(--gray-100);
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.changesBlock > h3 {
+  color: var(--green);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.changeList {
+  display: grid;
+  gap: 10px;
+}
+
+.changeItem {
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  background: var(--gray-50);
+  padding: 12px;
+}
+
+.changeItem h3 {
+  color: var(--gray-900);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .92rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.changeRows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.changeRows div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid var(--gray-100);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.changeRows span {
+  color: var(--gray-500);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.changeRows strong {
+  color: var(--gray-900);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .9rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.emptyChanges {
+  color: var(--gray-500);
+  font-family: var(--font-public-sans), sans-serif;
+  font-size: .9rem;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .paper {
+    padding: 24px 18px 28px;
+  }
+
+  .twoColumn,
+  .typeBlock {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .lineField,
+  .inlineLine {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .typeBlock > span,
+  .lineField > span,
+  .inlineLine > span {
+    white-space: normal;
+  }
+
+  .applicantSign,
+  .nmisSignature,
+  .copySignature {
+    width: 100%;
+  }
+
+  .amendmentPanel {
+    padding: 18px;
+  }
+
+  .changeRows {
+    grid-template-columns: 1fr;
+  }
 }

@@ -9,19 +9,18 @@
 
 const CLASS_MAP = {
   Active:    'tag-active',
-  Approved:  'tag-active',
-  Released:  'tag-active',
   Completed: 'tag-active',
   Expired:   'tag-expired',
-  Pending:   'tag-pending',
-  'For Review': 'tag-pending',
+  'Application Received': 'tag-pending',
   'Under Review': 'tag-pending',
-  'For Inspection': 'tag-pending',
+  'For Payment': 'tag-pending',
+  'For Payment Verification': 'tag-pending',
+  'Payment Verified': 'tag-active',
   Banned:    'tag-banned',
   Suspended: 'tag-banned',
   Revoked:   'tag-banned',
-  Rejected:  'tag-banned',
-  Denied:    'tag-banned',
+  'Rejected Application': 'tag-banned',
+  'Rejected Proof of Payment': 'tag-banned',
 }
 
 export default function StatusTag({ status }) {

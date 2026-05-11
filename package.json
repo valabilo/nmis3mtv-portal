@@ -13,15 +13,16 @@
     "@heroicons/react": "^2.2.0",
     "dotenv": "^17.4.2",
     "googleapis": "^140.0.0",
-    "next": "14.2.3",
-    "nodemailer": "^6.9.13",
+    "next": "^14.2.35",
+    "nodemailer": "^8.0.7",
+    "pdfkit": "^0.18.0",
     "react": "^18",
     "react-dom": "^18",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "eslint": "^8",
-    "eslint-config-next": "14.2.3",
+    "eslint": "^10.3.0",
+    "eslint-config-next": "^16.2.6",
     "postcss": "^8.5.13"
   }
 }

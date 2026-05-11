@@ -256,17 +256,17 @@ function VerifyContent() {
               <>
                 <button
                   type="button"
+                  className={styles.advancedButton}
+                  onClick={() => setAdvancedOpen(true)}>
+                  Advanced Search
+                </button>
+                <button
+                  type="button"
                   className={styles.exportButton}
                   disabled={loading || filteredRows.length === 0}
                   onClick={() => exportAccreditedRows(filteredRows)}>
                   <ArrowDownTrayIcon aria-hidden="true" />
                   Export CSV
-                </button>
-                <button
-                  type="button"
-                  className={styles.advancedButton}
-                  onClick={() => setAdvancedOpen(true)}>
-                  Advanced Search
                 </button>
               </>
             )}

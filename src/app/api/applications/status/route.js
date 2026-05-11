@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { readSheet } from "@/lib/googleSheets";
+import { getOnlinePaymentRecord, readSheet } from "@/lib/googleSheets";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,8 @@ export async function GET(request) {
         })
       : "—";
 
+    const onlinePayment = await getOnlinePaymentRecord(row.ref_number);
+
     return NextResponse.json({
       success: true,
       application: {
@@ -55,9 +57,20 @@ export async function GET(request) {
         business: row.bname,
         plate: row.plate,
         vehicleType: row.vtype,
-        status: row.status || "Pending",
+        status: row.status || "Application Received",
         submittedAt,
         remarks: row.remarks || "",
+        folderId: row.drive_folder_id || "",
+        paymentReference:
+          onlinePayment?.payment_reference_number ||
+          onlinePayment?.payment_ref_number ||
+          "",
+        paymentSubmittedAt: onlinePayment?.payment_submitted_at || "",
+        proofOfPaymentFileName: onlinePayment?.proof_of_payment_file_name || "",
+        orderOfPaymentUrl:
+          ["For Payment", "Rejected Proof of Payment"].includes(row.status)
+            ? `/api/applications/order-of-payment?ref=${encodeURIComponent(row.ref_number)}`
+            : "",
       },
     });
   } catch (error) {

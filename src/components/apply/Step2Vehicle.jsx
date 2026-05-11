@@ -102,11 +102,16 @@ export default function Step2Vehicle({
             Year Model <span className="req">*</span>
           </label>
           <input
-            type="number"
+            id="vyear"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="2020"
-            min="1950"
-            max="2030"
-            {...f("vyear", "number")}
+            maxLength="4"
+            value={data.vyear ?? ""}
+            onChange={(event) =>
+              onChange("vyear", event.target.value.replace(/\D/g, "").slice(0, 4))
+            }
           />
         </div>
         <div className="form-group">

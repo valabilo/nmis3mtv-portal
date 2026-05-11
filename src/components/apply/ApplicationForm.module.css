@@ -7,11 +7,11 @@
   overflow: visible;
 }
 
-.optimistic {
+.optimistic,
+.closedNotice {
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  margin: 20px 28px 0;
   padding: 14px 16px;
   border: 1px solid rgba(26, 92, 50, .18);
   border-radius: 8px;
@@ -19,13 +19,32 @@
   color: var(--green);
 }
 
-.optimistic strong {
+.optimistic {
+  margin: 20px 28px 0;
+}
+
+.amendmentNotice {
+  margin: 28px 28px 18px;
+}
+
+.closedContainer {
+  background: transparent;
+  border-radius: var(--radius);
+}
+
+.closedNotice {
+  margin: 0;
+}
+
+.optimistic strong,
+.closedNotice strong {
   color: var(--green-deep);
   display: block;
   margin-bottom: 2px;
 }
 
-.optimistic p {
+.optimistic p,
+.closedNotice p {
   font-size: .86rem;
   color: var(--gray-700);
   margin: 0;
@@ -78,6 +97,14 @@
   .optimistic {
     align-items: flex-start;
     margin: 16px 16px 0;
+    padding: 12px 14px;
+  }
+
+  .amendmentNotice {
+    margin: 20px 16px 16px;
+  }
+
+  .closedNotice {
     padding: 12px 14px;
   }
 }

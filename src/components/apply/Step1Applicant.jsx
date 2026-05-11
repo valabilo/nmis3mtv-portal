@@ -10,7 +10,7 @@ import styles from "./FormSteps.module.css";
 import Link from "next/link";
 import SelectField from "./SelectField";
 
-const APPLICATION_TYPES = ["New", "Renewal", "Amendment"];
+const APPLICATION_TYPES = ["New", "Renewal"];
 
 const PROVINCES = [
   "Pampanga",
@@ -29,6 +29,13 @@ export default function Step1Applicant({
   validatingGhp = false,
   lockApplicationType = false,
 }) {
+  const applicationTypeOptions = (
+    lockApplicationType ? ["Amendment"] : APPLICATION_TYPES
+  ).map((type) => ({
+    value: type,
+    label: type,
+  }));
+
   const f = (id, type = "text") => ({
     id,
     type,
@@ -47,10 +54,7 @@ export default function Step1Applicant({
             label="Type of Application"
             required
             value={data.applicationType}
-            options={APPLICATION_TYPES.map((type) => ({
-              value: type,
-              label: type,
-            }))}
+            options={applicationTypeOptions}
             onChange={(value) => onChange("applicationType", value)}
             disabled={lockApplicationType}
           />

@@ -82,27 +82,25 @@
 }
 
 .headerSortTrigger:hover {
-  color: var(--green);
+  color: inherit;
 }
 
 .sortButton {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--gray-200);
-  border-radius: 4px;
-  background: var(--white);
-  color: var(--gray-500);
-  cursor: pointer;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
   font-family: var(--font-public-sans), sans-serif;
-  font-size: .62rem;
+  font-size: .72rem;
   font-weight: 800;
   line-height: 1;
   padding: 0;
-  transition: var(--transition);
 }
 
 .noWrap {

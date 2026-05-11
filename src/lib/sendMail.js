@@ -4,6 +4,10 @@
  */
 
 import nodemailer from "nodemailer";
+import {
+  generateOrderOfPaymentPdf,
+  orderOfPaymentFilename,
+} from "@/lib/orderOfPayment";
 
 let transporter = null;
 
@@ -241,7 +245,24 @@ export async function sendApplicationStatusUpdateToApplicant(applicationData) {
   } = applicationData;
   const siteUrl = normalizeSiteUrl(applicationSiteUrl);
   const amendmentUrl = `${siteUrl}/apply?amend=${encodeURIComponent(reference)}`;
-  const showAmendmentLink = ["Rejected", "Denied"].includes(status);
+  const orderOfPaymentUrl = `${siteUrl}/api/applications/order-of-payment?ref=${encodeURIComponent(reference)}`;
+  const paymentSubmissionUrl = `${siteUrl}/application-status?ref=${encodeURIComponent(reference)}&payment=1`;
+  const showAmendmentLink = status === "Rejected Application";
+  const showOrderOfPayment = status === "For Payment";
+  const showProofAmendmentLink = status === "Rejected Proof of Payment";
+  const attachments = showOrderOfPayment
+    ? [
+        {
+          filename: orderOfPaymentFilename(reference),
+          content: await generateOrderOfPaymentPdf(
+            applicationData,
+            applicationData.onlinePayment || {},
+            { statusUrl: paymentSubmissionUrl },
+          ),
+          contentType: "application/pdf",
+        },
+      ]
+    : [];
 
   if (!email) {
     throw new Error("Applicant email address is missing.");
@@ -251,6 +272,7 @@ export async function sendApplicationStatusUpdateToApplicant(applicationData) {
     from: getDefaultSender(),
     to: formatMailAddress(registeredOwner, email),
     subject: `MTV Application Status Updated - ${reference}`,
+    attachments,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f9f9f9;">
         <div style="background:#1a5c32;padding:20px 24px;border-radius:8px 8px 0 0;">
@@ -262,7 +284,7 @@ export async function sendApplicationStatusUpdateToApplicant(applicationData) {
           <div style="background:#e6f2ec;border:1px solid #cfe5d8;border-radius:8px;padding:16px;margin:20px 0;">
             <p style="margin:0 0 8px;font-size:13px;color:#555;">Reference Number</p>
             <p style="margin:0 0 14px;font-size:22px;font-weight:bold;color:#1a5c32;letter-spacing:1px;">${reference}</p>
-            <p style="margin:0;font-size:14px;color:#555;">Previous Status: <strong>${previousStatus || "Pending"}</strong></p>
+            <p style="margin:0;font-size:14px;color:#555;">Previous Status: <strong>${previousStatus || "Application Received"}</strong></p>
             <p style="margin:8px 0 0;font-size:16px;color:#1a5c32;">New Status: <strong>${status}</strong></p>
           </div>
           <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
@@ -277,6 +299,16 @@ export async function sendApplicationStatusUpdateToApplicant(applicationData) {
           ${
             showAmendmentLink
               ? `<div style="background:#fde8e6;border:1px solid #f5b7b1;border-radius:8px;padding:14px;margin-bottom:18px;"><p style="margin:0 0 10px;color:#7b241c;">Please amend the required information or documents and resubmit your MTV application.</p><a href="${amendmentUrl}" style="display:inline-block;background:#1a5c32;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 14px;border-radius:6px;">Open amendment form</a></div>`
+              : ""
+          }
+          ${
+            showOrderOfPayment
+              ? `<div style="background:#e6f2ec;border:1px solid #cfe5d8;border-radius:8px;padding:14px;margin-bottom:18px;"><p style="margin:0 0 10px;color:#1a5c32;font-weight:bold;">Your Order of Payment is ready.</p><p style="margin:0 0 12px;color:#555;">It is attached to this email and can also be downloaded from the Application Status page.</p><p style="margin:0 0 12px;color:#555;">Already paid? Send your proof of payment and payment reference number using the link below.</p><a href="${orderOfPaymentUrl}" style="display:inline-block;background:#1a5c32;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 14px;border-radius:6px;margin-right:8px;">Download Order of Payment</a><a href="${paymentSubmissionUrl}" style="display:inline-block;background:#ffffff;color:#1a5c32;border:1px solid #1a5c32;text-decoration:none;font-weight:bold;padding:10px 14px;border-radius:6px;">Submit Proof of Payment</a></div>`
+              : ""
+          }
+          ${
+            showProofAmendmentLink
+              ? `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px;margin-bottom:18px;"><p style="margin:0 0 10px;color:#795548;font-weight:bold;">Your proof of payment needs correction.</p><p style="margin:0 0 12px;color:#555;">Please upload the corrected proof of payment and payment reference number.</p><a href="${paymentSubmissionUrl}" style="display:inline-block;background:#1a5c32;color:#ffffff;text-decoration:none;font-weight:bold;padding:10px 14px;border-radius:6px;">Update Proof of Payment</a></div>`
               : ""
           }
           <p>You can view your latest application status at the <a href="${siteUrl}/application-status?ref=${encodeURIComponent(reference)}" style="color:#1a5c32;font-weight:bold;">Application Status page</a>.</p>
@@ -323,7 +355,7 @@ export async function sendApplicationStatusUpdateToNMIS(applicationData) {
           <div style="background:#e6f2ec;border-radius:8px;padding:16px;margin-bottom:22px;">
             <p style="margin:0;font-size:13px;color:#555;">Reference Number</p>
             <p style="margin:4px 0 12px;font-size:22px;font-weight:bold;color:#1a5c32;letter-spacing:1px;">${reference}</p>
-            <p style="margin:0;font-size:14px;color:#555;">Previous Status: <strong>${previousStatus || "Pending"}</strong></p>
+            <p style="margin:0;font-size:14px;color:#555;">Previous Status: <strong>${previousStatus || "Application Received"}</strong></p>
             <p style="margin:8px 0 0;font-size:16px;color:#1a5c32;">New Status: <strong>${status}</strong></p>
           </div>
           <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">

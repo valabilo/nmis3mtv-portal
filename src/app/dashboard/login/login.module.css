@@ -1,4 +1,6 @@
 .loginPage {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -9,7 +11,21 @@
   font-family: var(--font-public-sans), sans-serif;
 }
 
+.loginPage::before {
+  content: "";
+  position: absolute;
+  right: clamp(-60px, 4vw, 80px);
+  bottom: clamp(-70px, 2vh, 48px);
+  width: min(480px, 70vw);
+  aspect-ratio: 1;
+  background: url("/nmis-logo.svg") center / contain no-repeat;
+  opacity: .08;
+  pointer-events: none;
+}
+
 .loginCard {
+  position: relative;
+  z-index: 1;
   width: min(420px, 100%);
   display: grid;
   gap: 16px;
