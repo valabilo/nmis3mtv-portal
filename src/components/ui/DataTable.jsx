@@ -15,7 +15,7 @@
  *   pageSizeOptions {number[]} Options for rows per page (default: [10, 20, 30])
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePagination } from "@/hooks/usePagination";
 import styles from "./DataTable.module.css";
 
@@ -49,6 +49,7 @@ export default function DataTable({
 }) {
   const [pageSize, setPageSize] = useState(pageSizeOptions[0]);
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
+  const [isCompactPager, setIsCompactPager] = useState(false);
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return data;
 
@@ -63,6 +64,16 @@ export default function DataTable({
   }, [data, sortConfig]);
   const { query, setQuery, page, setPage, rows, total, pages, filtered } =
     usePagination(sortedData, pageSize);
+
+  useEffect(() => {
+    const queryList = window.matchMedia("(max-width: 640px)");
+    const handleChange = () => setIsCompactPager(queryList.matches);
+
+    handleChange();
+    queryList.addEventListener("change", handleChange);
+
+    return () => queryList.removeEventListener("change", handleChange);
+  }, []);
 
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize);
@@ -81,7 +92,7 @@ export default function DataTable({
 
   const getPageNumbers = () => {
     const pageNumbers = [];
-    const maxVisible = 5;
+    const maxVisible = isCompactPager ? 3 : 5;
     const half = Math.floor(maxVisible / 2);
 
     let start = Math.max(1, page - half);
@@ -219,7 +230,7 @@ export default function DataTable({
               <button
                 onClick={() => setPage(page - 1)}
                 disabled={page === 1}
-                className={styles.pageBtn}
+                className={`${styles.pageBtn} ${styles.mobileOptionalPageBtn}`}
                 aria-label="Previous page">
                 &lsaquo;
               </button>
@@ -265,7 +276,7 @@ export default function DataTable({
               <button
                 onClick={() => setPage(page + 1)}
                 disabled={page === pages}
-                className={styles.pageBtn}
+                className={`${styles.pageBtn} ${styles.mobileOptionalPageBtn}`}
                 aria-label="Next page">
                 &rsaquo;
               </button>

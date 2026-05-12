@@ -9,6 +9,7 @@ const DEFAULT_COLLECTING_OFFICE = "Cash/Treasury Unit";
 const DEFAULT_BANK = "Landbank of the Philippines";
 const DEFAULT_AUTHORIZED_OFFICIAL = "DR. MA. THERESA D. MAGDARAO";
 const DEFAULT_OFFICIAL_TITLE = "Designate Admin Officer";
+const DEFAULT_PAYMENT_CONTACT = "0933-8263-760";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -425,7 +426,7 @@ export function buildOrderOfPaymentData(application = {}, onlinePayment = {}) {
       application.province ||
       "",
     email: application.email || "",
-    contact: "0933-8263-760" || "",
+    contact: DEFAULT_PAYMENT_CONTACT,
     licenseNo: onlinePayment.serial_no || licenseNumber(reference, date),
     serialNo: onlinePayment.serial_no || licenseNumber(reference, date),
     codeNo: onlinePayment.code || billNumber(reference),
@@ -448,7 +449,7 @@ export function buildOrderOfPaymentData(application = {}, onlinePayment = {}) {
     officialTitle:
       process.env.MTV_ORDER_PAYMENT_OFFICIAL_TITLE || DEFAULT_OFFICIAL_TITLE,
     companyNo:
-      process.env.MTV_ORDER_PAYMENT_COMPANY_NO || application.contact || "",
+      process.env.MTV_ORDER_PAYMENT_COMPANY_NO || DEFAULT_PAYMENT_CONTACT,
     dateOfPayment: onlinePayment.date_of_payment || "",
   };
 }
