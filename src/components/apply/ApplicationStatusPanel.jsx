@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import StatusTag from '@/components/ui/StatusTag'
 import { ACCEPTED_FILE_TYPES, ACCEPTED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/constants'
+import { formatBytes } from '@/lib/utils'
 import styles from './ApplicationStatusPanel.module.css'
 
 const CHUNK_SIZE = 4 * 1024 * 1024
@@ -90,6 +91,7 @@ export default function ApplicationStatusPanel() {
   const [paymentError, setPaymentError] = useState('')
   const [proofFile, setProofFile] = useState(null)
   const [proofProgress, setProofProgress] = useState(0)
+  const proofInputRef = useRef(null)
 
   async function checkStatus(value = ref) {
     const query = value.trim()
@@ -179,6 +181,7 @@ export default function ApplicationStatusPanel() {
       setPaymentReference(json.paymentReference || value)
       setPaymentMessage(json.message || 'Proof of payment submitted for NMIS verification.')
       setProofFile(null)
+      if (proofInputRef.current) proofInputRef.current.value = ''
       setApplication(current =>
         current
           ? {
@@ -210,17 +213,35 @@ export default function ApplicationStatusPanel() {
 
     if (file.size > MAX_FILE_SIZE) {
       setProofFile(null)
+      if (event.target) event.target.value = ''
       setPaymentError('Proof of payment must be 5 MB or smaller.')
       return
     }
 
     if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
       setProofFile(null)
+      if (event.target) event.target.value = ''
       setPaymentError('Upload proof as PDF, JPG, JPEG, or PNG only.')
       return
     }
 
     setProofFile(file)
+  }
+
+  function removeProofFile() {
+    setProofFile(null)
+    setProofProgress(0)
+    if (proofInputRef.current) proofInputRef.current.value = ''
+  }
+
+  function handleProofDrop(event) {
+    event.preventDefault()
+    if (paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application?.status)) return
+
+    const file = event.dataTransfer.files?.[0]
+    if (!file) return
+
+    chooseProofFile({ target: { files: [file] } })
   }
 
   useEffect(() => {
@@ -310,20 +331,63 @@ export default function ApplicationStatusPanel() {
                   </p>
                 </div>
                 <div className={styles.paymentForm}>
+                  <label className={styles.paymentField}>
+                    <span>Payment Reference Number</span>
+                    <input
+                      type="text"
+                      value={paymentReference}
+                      onChange={event => setPaymentReference(event.target.value.toUpperCase())}
+                      placeholder="e.g. LBP-123456789"
+                      disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
+                      aria-label="Payment reference number"
+                    />
+                  </label>
+                  <div className={styles.paymentField}>
+                    <span>Proof of Payment</span>
+                    {!proofFile ? (
+                      <div
+                        className={styles.dropZone}
+                        onClick={() => proofInputRef.current?.click()}
+                        onDragOver={event => {
+                          event.preventDefault()
+                          event.currentTarget.classList.add(styles.dragOver)
+                        }}
+                        onDragLeave={event => event.currentTarget.classList.remove(styles.dragOver)}
+                        onDrop={event => {
+                          event.currentTarget.classList.remove(styles.dragOver)
+                          handleProofDrop(event)
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Upload proof of payment"
+                        onKeyDown={event => event.key === 'Enter' && proofInputRef.current?.click()}
+                      >
+                        <span className={styles.dropIcon}>Upload</span>
+                        <p>Click to upload or drag and drop</p>
+                        <p className={styles.dropHint}>PDF, JPG, PNG - max 5 MB</p>
+                      </div>
+                    ) : (
+                      <div className={styles.fileItem}>
+                        <span>{proofFile.name} ({formatBytes(proofFile.size)})</span>
+                        <button
+                          type="button"
+                          onClick={removeProofFile}
+                          className={styles.removeBtn}
+                          disabled={paymentSaving}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <input
-                    type="text"
-                    value={paymentReference}
-                    onChange={event => setPaymentReference(event.target.value.toUpperCase())}
-                    placeholder="e.g. LBP-123456789"
-                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
-                    aria-label="Payment reference number"
-                  />
-                  <input
+                    ref={proofInputRef}
                     type="file"
                     accept={ACCEPTED_FILE_TYPES}
                     onChange={chooseProofFile}
                     disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
                     aria-label="Proof of payment"
+                    className={styles.hiddenFile}
                   />
                   <button
                     className={styles.downloadButton}
@@ -332,7 +396,6 @@ export default function ApplicationStatusPanel() {
                     {paymentSaving ? 'Submitting...' : PAYMENT_LOCKED_STATUSES.includes(application.status) ? 'Submitted' : 'Submit Proof'}
                   </button>
                 </div>
-                {proofFile ? <p className={styles.paymentMeta}>Selected file: {proofFile.name}</p> : null}
                 {application.proofOfPaymentFileName && !proofFile ? (
                   <p className={styles.paymentMeta}>Submitted file: {application.proofOfPaymentFileName}</p>
                 ) : null}

@@ -1,4 +1,4 @@
-import PDFDocument from "pdfkit";
+import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
 const DEFAULT_PAYMENT_AMOUNT = 300;
 const DEFAULT_PURPOSE = "MTV Payment (NIU 4999)";
