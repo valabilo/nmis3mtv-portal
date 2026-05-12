@@ -1001,7 +1001,10 @@ export default function DashboardHub() {
     { value: "FlaggedGroup", label: "Rejected" },
     { value: "Application Received", label: "Application Received" },
     ...STATUSES.map((status) => ({ value: status, label: status })),
-  ];
+  ].filter(
+    (option, index, options) =>
+      options.findIndex((item) => item.label === option.label) === index,
+  );
   const yearOptions = [
     { value: "All", label: "All years" },
     ...applicationYears.map((year) => ({ value: year, label: year })),
