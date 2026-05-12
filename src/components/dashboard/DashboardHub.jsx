@@ -998,7 +998,6 @@ export default function DashboardHub() {
     { value: "All", label: "All statuses" },
     { value: "ReviewGroup", label: "In review" },
     { value: "ApprovedGroup", label: "Completed" },
-    { value: "FlaggedGroup", label: "Rejected" },
     { value: "Application Received", label: "Application Received" },
     ...STATUSES.map((status) => ({ value: status, label: status })),
   ].filter(
