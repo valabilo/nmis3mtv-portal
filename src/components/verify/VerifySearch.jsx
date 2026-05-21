@@ -5,6 +5,30 @@ import StatusTag from "@/components/ui/StatusTag";
 import { normalise } from "@/lib/utils";
 import styles from "./VerifySearch.module.css";
 
+function accreditationMessage(status) {
+  if (status === "Active") {
+    return "This vehicle is currently ACCREDITED and authorized to transport meat.";
+  }
+
+  if (status === "Cancelled") {
+    return "This vehicle's accreditation has been cancelled.";
+  }
+
+  if (status === "Suspended") {
+    return "This vehicle's accreditation is currently suspended.";
+  }
+
+  if (status === "Revoked") {
+    return "This vehicle's accreditation has been revoked.";
+  }
+
+  if (status === "Expired") {
+    return "This vehicle's accreditation has expired.";
+  }
+
+  return `This vehicle's accreditation status is ${status.toLowerCase()}.`;
+}
+
 export default function VerifySearch({ data, showToast, initialQ = "" }) {
   const [query, setQuery] = useState(initialQ);
   const [result, setResult] = useState(null);
@@ -97,9 +121,7 @@ export default function VerifySearch({ data, showToast, initialQ = "" }) {
               ))}
             </div>
             <div className={stat === "Active" ? styles.alertActive : styles.alertInactive}>
-              {stat === "Active"
-                ? "This vehicle is currently ACCREDITED and authorized to transport meat."
-                : `This vehicle's accreditation has ${stat.toLowerCase()}.`}
+              {accreditationMessage(stat)}
             </div>
           </div>
         </div>

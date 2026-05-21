@@ -18,8 +18,16 @@ function firstValue(row, keys) {
 function statusValue(row) {
   const status = firstValue(row, ['status'])
   const normalizedStatus = status.trim().toLowerCase()
-  if (['active', 'inactive', 'suspended', 'revoked'].includes(normalizedStatus)) {
-    return status
+  const statusLabels = {
+    active: 'Active',
+    inactive: 'Inactive',
+    suspended: 'Suspended',
+    revoked: 'Revoked',
+    expired: 'Expired',
+    cancelled: 'Cancelled',
+  }
+  if (statusLabels[normalizedStatus]) {
+    return statusLabels[normalizedStatus]
   }
 
   return 'Active'
@@ -43,7 +51,7 @@ function normalizeRecord(row, type) {
     reference: firstValue(row, ['ref_number', 'reference', 'registration_no']),
     plate: firstValue(row, ['plate', 'plate_no', 'plate_number']),
     business: firstValue(row, ['business', 'business_name', 'bname', 'establishment_name']),
-    type: firstValue(row, ['establishment_type', 'type', 'vehicle_type', 'vtype']),
+    type: firstValue(row, ['establishment_type', 'business_type', 'type', 'vehicle_type', 'vtype']),
     owner: firstValue(row, ['owner', 'applicant', 'name', 'name_of_owner', 'operator', 'proprietor']),
     address: firstValue(row, ['address']),
     telNo: firstValue(row, ['tel_no', 'telephone_no', 'contact', 'phone']),

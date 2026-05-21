@@ -19,6 +19,7 @@ const CLASS_MAP = {
   Banned:    'tag-banned',
   Suspended: 'tag-banned',
   Revoked:   'tag-banned',
+  Cancelled: 'tag-banned',
   'Rejected Application': 'tag-banned',
   'Rejected Proof of Payment': 'tag-banned',
 }

@@ -183,6 +183,25 @@
   margin: 0;
 }
 
+.cancelledNotice {
+  background: var(--red-lt);
+  border: 1px solid rgba(192, 57, 43, .22);
+  border-radius: 8px;
+  color: #991b1b;
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.cancelledNotice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.cancelledNotice p {
+  font-size: .9rem;
+  margin: 0;
+}
+
 .downloadCard {
   align-items: center;
   background: #fff8e1;

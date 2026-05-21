@@ -20,7 +20,12 @@ function addMonths(date, months) {
 }
 
 function isExpiringSoon(value, status) {
-  if (!value || status === "Expired" || status === "Revoked") return false;
+  if (
+    !value ||
+    ["Cancelled", "Expired", "Inactive", "Revoked", "Suspended"].includes(status)
+  ) {
+    return false;
+  }
 
   const expiry = new Date(value);
   if (Number.isNaN(expiry.getTime())) return false;
@@ -106,6 +111,15 @@ const ACCREDITED_EXPORT_COLUMNS = [
   ["Date Issued", "dateIssued"],
   ["Expiry Date", "expiry"],
   ["Status", (row) => row.status || "Active"],
+];
+
+const ACCREDITED_STATUS_OPTIONS = [
+  "Active",
+  "Expired",
+  "Inactive",
+  "Suspended",
+  "Revoked",
+  "Cancelled",
 ];
 
 function VerifyContent() {
@@ -352,10 +366,11 @@ function VerifyContent() {
                     updateAdvancedFilter("status", event.target.value)
                   }>
                   <option value="All">All statuses</option>
-                  <option value="Active">Active</option>
-                  <option value="Expired">Expired</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Revoked">Revoked</option>
+                  {ACCREDITED_STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
                 </select>
               </label>
               <div className={styles.dateFilterField}>

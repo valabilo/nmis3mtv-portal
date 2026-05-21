@@ -281,6 +281,10 @@ export default function ApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [validatingGhp, setValidatingGhp] = useState(false);
   const [loadingAmendment, setLoadingAmendment] = useState(false);
+  const [renewalModalOpen, setRenewalModalOpen] = useState(false);
+  const [renewalPlate, setRenewalPlate] = useState("");
+  const [renewalLookupLoading, setRenewalLookupLoading] = useState(false);
+  const [renewalLookupError, setRenewalLookupError] = useState("");
   const [establishmentTypes, setEstablishmentTypes] = useState([]);
   const [establishmentNames, setEstablishmentNames] = useState([]);
   const [loadingEstablishmentTypes, setLoadingEstablishmentTypes] =
@@ -482,7 +486,93 @@ export default function ApplicationForm() {
   }, [agree, draftReady, formData, step, submitted]);
 
   function updateField(key, value) {
+    if (key === "applicationType") {
+      if (value === "Renewal" && !formData.amendmentRef) {
+        setFormData((prev) => ({ ...prev, applicationType: "Renewal" }));
+        setRenewalPlate(formData.plate || "");
+        setRenewalLookupError("");
+        setRenewalModalOpen(true);
+        return;
+      }
+
+      setRenewalModalOpen(false);
+      setRenewalLookupError("");
+      if (value === "New") {
+        resetToNewApplication();
+        return;
+      }
+    }
+
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function resetToNewApplication() {
+    setFormData(INITIAL_FORM);
+    setOriginalAmendmentData(null);
+    setAmendmentFolderId("");
+    setRenewalPlate("");
+    setRenewalLookupError("");
+    setFiles({});
+    setAgree(false);
+  }
+
+  function applyRenewalRecord(record, plate) {
+    setFormData((prev) => {
+      const next = { ...prev };
+      Object.entries(record || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim()) {
+          next[key] = value;
+        }
+      });
+      next.applicationType = "Renewal";
+      next.amendmentRef = "";
+      next.plate = plate || next.plate;
+      return next;
+    });
+  }
+
+  function closeRenewalModal({ resetType = false } = {}) {
+    setRenewalModalOpen(false);
+    setRenewalLookupError("");
+    if (resetType) {
+      resetToNewApplication();
+    }
+  }
+
+  async function lookupRenewalRecord(event) {
+    event?.preventDefault();
+    const plate = renewalPlate.trim().toUpperCase();
+    if (!plate) {
+      setRenewalLookupError("Enter the plate number to find the previous MTV record.");
+      return;
+    }
+
+    setRenewalLookupLoading(true);
+    setRenewalLookupError("");
+
+    try {
+      const res = await fetch(
+        `/api/applications/renewal?plate=${encodeURIComponent(plate)}`,
+        { cache: "no-store" },
+      );
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Unable to load renewal record.");
+      }
+
+      applyRenewalRecord(json.data, plate);
+      setRenewalModalOpen(false);
+      showToast(
+        `Previous MTV record loaded. Current expiry: ${json.currentExpiry}; renewal starts ${json.nextIssueDate}.`,
+      );
+    } catch (error) {
+      const message = error.message || "Unable to load renewal record.";
+      resetToNewApplication();
+      setRenewalModalOpen(false);
+      showToast(message, true);
+    } finally {
+      setRenewalLookupLoading(false);
+    }
   }
 
   // ─── Validation helpers ─────────────────────────────────────────────────────
@@ -527,6 +617,28 @@ export default function ApplicationForm() {
     return true;
   }
 
+  function isFieldStepComplete(stepNumber) {
+    return (REQUIRED_BY_STEP[stepNumber] || []).every((key) =>
+      formData[key]?.trim(),
+    );
+  }
+
+  function isDocumentStepComplete() {
+    const hasRequiredDocs =
+      formData.amendmentRef ||
+      REQUIRED_DOCS.every((doc) => !doc.required || files[doc.id]);
+
+    return hasRequiredDocs && agree;
+  }
+
+  function canVisitStep(targetStep) {
+    if (targetStep <= step) return true;
+    if (targetStep >= 2 && !isFieldStepComplete(1)) return false;
+    if (targetStep >= 3 && !isFieldStepComplete(2)) return false;
+    if (targetStep >= 4 && !isDocumentStepComplete()) return false;
+    return true;
+  }
+
   /**
    * Validates the optional GHP certificate number against the Sheets database.
    * Empty value is always valid (the field is optional).
@@ -567,9 +679,50 @@ export default function ApplicationForm() {
    * Advances to a target step, optionally running field validation first.
    * For step 1 → 2 the GHP cert is also validated when provided.
    */
+  async function validateNewPlateIsNotExistingMtv() {
+    if (formData.applicationType !== "New" || formData.amendmentRef) return true;
+
+    const plate = formData.plate?.trim();
+    if (!plate) return true;
+
+    try {
+      const res = await fetch(
+        `/api/applications/renewal?mode=status&plate=${encodeURIComponent(plate)}`,
+        { cache: "no-store" },
+      );
+      const json = await res.json();
+
+      if (!json.exists) return true;
+
+      if (json.eligible) {
+        showToast(
+          "This plate already has an accredited MTV record and is eligible for renewal. Please select Renewal as the application type.",
+          true,
+        );
+        return false;
+      }
+
+      showToast(
+        json.error ||
+          "This plate already has an active MTV record and can only be renewed two months before expiration.",
+        true,
+      );
+      return false;
+    } catch {
+      showToast("Unable to verify this plate number. Please try again.", true);
+      return false;
+    }
+  }
+
   async function goToStep(target, validate = false) {
+    if (target === step) return;
+
     if (validate) {
       if (!runFieldValidation(step)) return;
+      if (step === 2) {
+        const plateOk = await validateNewPlateIsNotExistingMtv();
+        if (!plateOk) return;
+      }
       // Step 3 requires document + agreement check
       if (step === 3 && !runDocumentValidation()) return;
       // Validate optional GHP cert on step 1 before advancing
@@ -596,6 +749,8 @@ export default function ApplicationForm() {
     if (!runFieldValidation(1)) return;
     // Step 2 fields (vehicle info)
     if (!runFieldValidation(2)) return;
+    const plateOk = await validateNewPlateIsNotExistingMtv();
+    if (!plateOk) return;
     // Step 3: required documents + agreement
     if (!runDocumentValidation()) return;
     // Optional GHP certificate number (async — hits the database)
@@ -782,7 +937,12 @@ export default function ApplicationForm() {
             </div>
           </div>
         ) : null}
-        <FormProgress currentStep={step} />
+        <FormProgress
+          currentStep={step}
+          onStepChange={(targetStep) => goToStep(targetStep)}
+          isStepEnabled={canVisitStep}
+          disabled={submitting || loadingAmendment || validatingGhp}
+        />
 
         {optimisticMessage && (
           <div className={styles.optimistic} role="status" aria-live="polite">
@@ -850,6 +1010,70 @@ export default function ApplicationForm() {
           />
         )}
       </div>
+      {renewalModalOpen ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !renewalLookupLoading) {
+              closeRenewalModal({ resetType: true });
+            }
+          }}>
+          <form
+            className={styles.renewalModal}
+            onSubmit={lookupRenewalRecord}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="renewal-lookup-title">
+            <span className={styles.modalKicker}>Renewal</span>
+            <h2 id="renewal-lookup-title">Find Previous MTV Record</h2>
+            <p>
+              Enter the plate number of the accredited MTV. If the record is
+              eligible for renewal, the form will be filled with the previous
+              application details.
+            </p>
+            <label htmlFor="renewal-plate">
+              Plate Number
+              <input
+                id="renewal-plate"
+                type="text"
+                value={renewalPlate}
+                autoFocus
+                placeholder="ABC 1234"
+                maxLength="20"
+                disabled={renewalLookupLoading}
+                onChange={(event) => {
+                  const value = event.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9\s-]/g, "");
+                  setRenewalPlate(value);
+                  setRenewalLookupError("");
+                }}
+              />
+            </label>
+            {renewalLookupError ? (
+              <div className={styles.modalError} role="alert">
+                {renewalLookupError}
+              </div>
+            ) : null}
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalSecondary}
+                disabled={renewalLookupLoading}
+                onClick={() => closeRenewalModal({ resetType: true })}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={styles.modalPrimary}
+                disabled={renewalLookupLoading}>
+                {renewalLookupLoading ? "Checking..." : "Find Record"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
       <Toast {...toastState} />
     </>
   );

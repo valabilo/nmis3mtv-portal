@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
+  ChartBarIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
@@ -16,6 +17,7 @@ import {
   ShieldCheckIcon,
   Squares2X2Icon,
   TruckIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 import DataTable from "@/components/ui/DataTable";
 import StatusTag from "@/components/ui/StatusTag";
@@ -30,10 +32,21 @@ const STATUSES = [
   "Payment Verified",
   "Rejected Proof of Payment",
   "Completed",
+  "Cancelled",
+];
+
+const ACCREDITED_STATUSES = [
+  "Active",
+  "Expired",
+  "Inactive",
+  "Suspended",
+  "Revoked",
+  "Cancelled",
 ];
 
 const TABS = [
   { id: "overview", label: "Overview", icon: Squares2X2Icon },
+  { id: "analytics", label: "Analytics", icon: ChartBarIcon },
   { id: "applications", label: "Applications", icon: ClipboardDocumentListIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "details", label: "Details", icon: DocumentTextIcon },
@@ -76,6 +89,23 @@ const ACCREDITED_EXPORT_COLUMNS = [
   ["Date Issued", "approvedAt"],
   ["Expiry Date", "expiry"],
   ["Status", (row) => row.status || "Active"],
+];
+
+const AUDIT_TRAIL_EXPORT_COLUMNS = [
+  ["Reference", "reference"],
+  ["Trail No.", "trailNo"],
+  ["Timestamp", "timestamp"],
+  ["Date", "date"],
+  ["Time", "time"],
+  ["Status", "status"],
+  ["Previous Status", "previousStatus"],
+  ["Remarks", "remarks"],
+  ["Application Type", "applicationType"],
+  ["Owner", "registeredOwner"],
+  ["Email", "email"],
+  ["Plate", "plate"],
+  ["Business Name", "businessName"],
+  ["Establishment Type", "businessType"],
 ];
 
 const ACCREDITED_TABLE_COLUMNS = [
@@ -168,7 +198,12 @@ function addMonths(date, months) {
 }
 
 function isExpiringSoon(value, status) {
-  if (!value || status === "Expired" || status === "Revoked") return false;
+  if (
+    !value ||
+    ["Cancelled", "Expired", "Inactive", "Revoked", "Suspended"].includes(status)
+  ) {
+    return false;
+  }
 
   const expiry = new Date(value);
   if (Number.isNaN(expiry.getTime())) return false;
@@ -267,6 +302,19 @@ function recordYearMonth(value) {
   };
 }
 
+function monthLabel(value) {
+  return MONTHS.find(([month]) => month === value)?.[1] || value;
+}
+
+function shortMonthLabel(value) {
+  return monthLabel(value).slice(0, 3);
+}
+
+function percentage(value, total) {
+  if (!total) return 0;
+  return Math.round((value / total) * 100);
+}
+
 function csvCell(value) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '""')}"`;
@@ -345,7 +393,9 @@ function exportCsv({ filenameBase, columns, rows }) {
   let currentSize = encoder.encode(current).length;
 
   rows.forEach((row) => {
-    const line = `${columns.map(([, key]) => csvCell(row[key])).join(",")}\n`;
+    const line = `${columns
+      .map(([, key]) => csvCell(typeof key === "function" ? key(row) : row[key]))
+      .join(",")}\n`;
     const lineSize = encoder.encode(line).length;
 
     if (currentSize + lineSize > EXPORT_MAX_BYTES && current !== header) {
@@ -367,6 +417,35 @@ function exportCsv({ filenameBase, columns, rows }) {
   });
 
   return chunks.length;
+}
+
+function auditTrailRowsForApplication(application) {
+  const history = application.statusHistory?.length
+    ? application.statusHistory
+    : [
+        {
+          status: application.status || "Application Received",
+          remarks: application.remarks || "Application submitted.",
+          timestamp: application.timestamp || "",
+        },
+      ];
+
+  return history.map((item, index) => ({
+    reference: application.reference || "",
+    trailNo: index + 1,
+    timestamp: item.timestamp || "",
+    date: formatDate(item.timestamp),
+    time: formatTime(item.timestamp),
+    status: item.status || "Application Received",
+    previousStatus: item.previousStatus || "",
+    remarks: item.remarks || "",
+    applicationType: application.applicationType || "",
+    registeredOwner: application.registeredOwner || "",
+    email: application.email || "",
+    plate: application.plate || "",
+    businessName: application.businessName || "",
+    businessType: application.businessType || "",
+  }));
 }
 
 function InfoRow({ label, value }) {
@@ -424,6 +503,46 @@ function MetricCard({ label, value, helper, tone = "default", onClick }) {
       <strong>{value}</strong>
       <p>{helper}</p>
     </button>
+  );
+}
+
+function BarChart({ data, valueKey = "count", labelKey = "label", helperKey }) {
+  const max = Math.max(...data.map((item) => Number(item[valueKey]) || 0), 1);
+
+  return (
+    <div className={styles.barChart}>
+      {data.map((item) => {
+        const value = Number(item[valueKey]) || 0;
+        return (
+          <div className={styles.barRow} key={item[labelKey]}>
+            <span>{item[labelKey]}</span>
+            <div className={styles.barTrack}>
+              <span style={{ width: `${Math.max((value / max) * 100, value ? 4 : 0)}%` }} />
+            </div>
+            <strong>{value}</strong>
+            {helperKey ? <small>{item[helperKey]}</small> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MonthlyTrendChart({ data }) {
+  const max = Math.max(...data.map((item) => item.count), 1);
+
+  return (
+    <div className={styles.monthlyChart}>
+      {data.map((item) => (
+        <div className={styles.monthColumn} key={item.month}>
+          <strong>{item.count}</strong>
+          <div className={styles.monthTrack}>
+            <span style={{ height: `${Math.max((item.count / max) * 100, item.count ? 8 : 0)}%` }} />
+          </div>
+          <small>{shortMonthLabel(item.month)}</small>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -604,6 +723,7 @@ export default function DashboardHub() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("All");
+  const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
   const [accreditedAdvancedOpen, setAccreditedAdvancedOpen] = useState(false);
   const [accreditedAdvancedFilters, setAccreditedAdvancedFilters] = useState(
     EMPTY_ACCREDITED_ADVANCED_FILTERS,
@@ -615,6 +735,7 @@ export default function DashboardHub() {
   const [draftStatus, setDraftStatus] = useState("");
   const [pendingStatus, setPendingStatus] = useState("");
   const [pendingRemarks, setPendingRemarks] = useState("");
+  const [pendingAccreditedRecord, setPendingAccreditedRecord] = useState(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [recordLock, setRecordLock] = useState(null);
   const [dashboardNotifications, setDashboardNotifications] = useState([]);
@@ -831,6 +952,32 @@ export default function DashboardHub() {
     );
   }, [selectedApplication, selectedDocumentId]);
 
+  const accreditedTableColumns = useMemo(
+    () => [
+      ...ACCREDITED_TABLE_COLUMNS,
+      {
+        key: "actions",
+        label: "Actions",
+        className: "noWrap",
+        render: (_, row) => {
+          const isCancelled = String(row.status || "").trim() === "Cancelled";
+
+          return (
+            <button
+              type="button"
+              className={styles.cancelInlineButton}
+              disabled={saving || isCancelled}
+              onClick={() => setPendingAccreditedRecord(row)}>
+              <XCircleIcon aria-hidden="true" />
+              {isCancelled ? "Cancelled" : "Cancel"}
+            </button>
+          );
+        },
+      },
+    ],
+    [saving],
+  );
+
   useEffect(() => {
     if (!selectedApplication?.reference || activeTab !== "details") {
       setRecordLock(null);
@@ -871,7 +1018,7 @@ export default function DashboardHub() {
     const normalizedQuery = query.trim().toLowerCase();
     const reviewStatuses = ["Under Review", "For Payment", "For Payment Verification", "Payment Verified"];
     const approvedStatuses = ["Completed"];
-    const flaggedStatuses = ["Rejected Application", "Rejected Proof of Payment"];
+    const flaggedStatuses = ["Rejected Application", "Rejected Proof of Payment", "Cancelled"];
 
     return applications.filter((application) => {
       const submittedDate = recordYearMonth(application.timestamp);
@@ -913,6 +1060,92 @@ export default function DashboardHub() {
 
     return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
   }, [applications]);
+
+  const analyticsYears = useMemo(() => {
+    const years = [
+      ...applications.map((application) => yearFromValue(application.timestamp)),
+      ...accreditedRecords.map((record) => yearFromValue(record.approvedAt || record.dateIssued)),
+    ].filter(Boolean);
+
+    return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
+  }, [accreditedRecords, applications]);
+
+  useEffect(() => {
+    if (
+      analyticsYear === "All" ||
+      !analyticsYears.length ||
+      analyticsYears.includes(analyticsYear)
+    ) {
+      return;
+    }
+    setAnalyticsYear(analyticsYears[0]);
+  }, [analyticsYear, analyticsYears]);
+
+  const analytics = useMemo(() => {
+    const selectedYear = analyticsYear === "All" ? "" : analyticsYear;
+    const yearApplications = selectedYear
+      ? applications.filter(
+          (application) => yearFromValue(application.timestamp) === selectedYear,
+        )
+      : applications;
+    const yearAccredited = selectedYear
+      ? accreditedRecords.filter(
+          (record) => yearFromValue(record.approvedAt || record.dateIssued) === selectedYear,
+        )
+      : accreditedRecords;
+    const monthlyAccredited = MONTHS.map(([month, label]) => ({
+      month,
+      label,
+      count: yearAccredited.filter(
+        (record) => monthFromValue(record.approvedAt || record.dateIssued) === month,
+      ).length,
+    }));
+    const yearlyMap = new Map();
+
+    accreditedRecords.forEach((record) => {
+      const year = yearFromValue(record.approvedAt || record.dateIssued) || "No date";
+      yearlyMap.set(year, (yearlyMap.get(year) || 0) + 1);
+    });
+
+    const yearlyAccredited = Array.from(yearlyMap, ([label, count]) => ({
+      label,
+      count,
+    })).sort((a, b) => Number(a.label) - Number(b.label));
+
+    const typeMap = new Map();
+    yearAccredited.forEach((record) => {
+      const type =
+        record.type ||
+        record.establishment_type ||
+        record.business_type ||
+        "Unspecified";
+      typeMap.set(type, (typeMap.get(type) || 0) + 1);
+    });
+
+    const establishmentTypes = Array.from(typeMap, ([label, count]) => ({
+      label,
+      count,
+      share: `${percentage(count, yearAccredited.length)}%`,
+    })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    const statusBreakdown = ["Application Received", ...STATUSES].map((status) => ({
+      label: status,
+      count: yearApplications.filter((application) => application.status === status).length,
+      share: `${percentage(
+        yearApplications.filter((application) => application.status === status).length,
+        yearApplications.length,
+      )}%`,
+    }));
+
+    return {
+      monthlyAccredited,
+      yearlyAccredited,
+      establishmentTypes,
+      statusBreakdown,
+      selectedApplications: yearApplications.length,
+      selectedAccredited: yearAccredited.length,
+    };
+  }, [accreditedRecords, analyticsYear, applications]);
 
   const filteredAccreditedRecords = useMemo(() => {
     return accreditedRecords.filter((record) => {
@@ -988,7 +1221,7 @@ export default function DashboardHub() {
       ["Completed"].includes(item.status),
     ).length;
     const flagged = applications.filter((item) =>
-      ["Rejected Application", "Rejected Proof of Payment"].includes(item.status),
+      ["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(item.status),
     ).length;
 
     return { pending, activeReview, approved, flagged };
@@ -998,6 +1231,7 @@ export default function DashboardHub() {
     { value: "All", label: "All statuses" },
     { value: "ReviewGroup", label: "In review" },
     { value: "ApprovedGroup", label: "Completed" },
+    { value: "FlaggedGroup", label: "Flagged / cancelled" },
     { value: "Application Received", label: "Application Received" },
     ...STATUSES.map((status) => ({ value: status, label: status })),
   ].filter(
@@ -1007,6 +1241,10 @@ export default function DashboardHub() {
   const yearOptions = [
     { value: "All", label: "All years" },
     ...applicationYears.map((year) => ({ value: year, label: year })),
+  ];
+  const analyticsYearOptions = [
+    { value: "All", label: "All years" },
+    ...analyticsYears.map((year) => ({ value: year, label: year })),
   ];
   const monthOptions = [
     { value: "All", label: "All months" },
@@ -1112,14 +1350,59 @@ export default function DashboardHub() {
     if (!selectedApplication || !pendingStatus) return;
 
     if (
-      ["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) &&
+      ["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) &&
       !pendingRemarks.trim()
     ) {
-      setError("Remarks are required when rejecting an application or proof of payment.");
+      setError("Remarks are required when rejecting or cancelling a record.");
       return;
     }
 
     await submitStatusUpdate(pendingStatus, `Status updated to ${pendingStatus}.`);
+  }
+
+  async function confirmAccreditedCancellation() {
+    if (!pendingAccreditedRecord) return;
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/admin/applications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: "accredited",
+          reference:
+            pendingAccreditedRecord.reference ||
+            pendingAccreditedRecord.registration_no ||
+            pendingAccreditedRecord.plate,
+          status: "Cancelled",
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Failed to cancel accredited MTV.");
+      }
+
+      setAccreditedRecords((records) =>
+        records.map((record) =>
+          record.reference === pendingAccreditedRecord.reference
+            ? { ...record, status: "Cancelled" }
+            : record,
+        ),
+      );
+      await refreshDashboardData();
+      setNotice(
+        `Accredited MTV ${pendingAccreditedRecord.reference || pendingAccreditedRecord.plate} cancelled.`,
+      );
+    } catch (err) {
+      setError(err.message || "Failed to cancel accredited MTV.");
+    } finally {
+      setSaving(false);
+      setPendingAccreditedRecord(null);
+    }
   }
 
   function cancelStatusChange() {
@@ -1127,6 +1410,7 @@ export default function DashboardHub() {
     setDraftStatus(selectedApplication?.status || "");
     setPendingStatus("");
     setPendingRemarks("");
+    setPendingAccreditedRecord(null);
   }
 
   function selectApplication(reference, tab = "details") {
@@ -1163,6 +1447,31 @@ export default function DashboardHub() {
     });
     setNotice(
       `Exported ${rows.length} filtered accredited records${parts > 1 ? ` into ${parts} files` : ""}.`,
+    );
+  }
+
+  function exportAuditTrail(application = selectedApplication) {
+    if (!application) return;
+    const rows = auditTrailRowsForApplication(application);
+    const parts = exportCsv({
+      filenameBase: `mtv-audit-trail-${application.reference}`,
+      columns: AUDIT_TRAIL_EXPORT_COLUMNS,
+      rows,
+    });
+    setNotice(
+      `Downloaded ${rows.length} audit trail entries for ${application.reference}${parts > 1 ? ` into ${parts} files` : ""}.`,
+    );
+  }
+
+  function exportAllAuditTrails() {
+    const rows = filteredApplications.flatMap(auditTrailRowsForApplication);
+    const parts = exportCsv({
+      filenameBase: "mtv-audit-trails",
+      columns: AUDIT_TRAIL_EXPORT_COLUMNS,
+      rows,
+    });
+    setNotice(
+      `Downloaded ${rows.length} audit trail entries from ${filteredApplications.length} filtered applications${parts > 1 ? ` into ${parts} files` : ""}.`,
     );
   }
 
@@ -1320,6 +1629,70 @@ export default function DashboardHub() {
           </section>
         )}
 
+        {activeTab === "analytics" && (
+          <section className={styles.section}>
+            <div className={styles.analyticsHeader}>
+              <div>
+                <span className={styles.kicker}>Analytics</span>
+                <h2>MTV Application Trends</h2>
+                <p>
+                  {analytics.selectedApplications} applications and{" "}
+                  {analytics.selectedAccredited} accredited MTV records in view.
+                </p>
+              </div>
+              <Dropdown
+                id="analytics-year-filter"
+                label="Year"
+                value={analyticsYear}
+                options={analyticsYearOptions}
+                onChange={setAnalyticsYear}
+              />
+            </div>
+
+            <div className={styles.analyticsGrid}>
+              <article className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <span className={styles.kicker}>Monthly</span>
+                    <h2>Accredited by Month</h2>
+                  </div>
+                </div>
+                <MonthlyTrendChart data={analytics.monthlyAccredited} />
+              </article>
+
+              <article className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <span className={styles.kicker}>Establishment Type</span>
+                    <h2>Accredited MTVs</h2>
+                  </div>
+                </div>
+                <BarChart data={analytics.establishmentTypes.slice(0, 10)} helperKey="share" />
+              </article>
+
+              <article className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <span className={styles.kicker}>Yearly</span>
+                    <h2>Accredited Volume</h2>
+                  </div>
+                </div>
+                <BarChart data={analytics.yearlyAccredited} />
+              </article>
+
+              <article className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <span className={styles.kicker}>Status</span>
+                    <h2>Application Pipeline</h2>
+                  </div>
+                </div>
+                <BarChart data={analytics.statusBreakdown} helperKey="share" />
+              </article>
+            </div>
+          </section>
+        )}
+
         {activeTab === "applications" && (
           <section className={styles.section}>
             <div className={styles.panel}>
@@ -1358,6 +1731,14 @@ export default function DashboardHub() {
                   disabled={filteredApplications.length === 0}>
                   <ArrowDownTrayIcon aria-hidden="true" />
                   Export
+                </button>
+                <button
+                  type="button"
+                  className={styles.exportButton}
+                  onClick={exportAllAuditTrails}
+                  disabled={filteredApplications.length === 0}>
+                  <ArrowDownTrayIcon aria-hidden="true" />
+                  Audit trail
                 </button>
               </div>
 
@@ -1412,7 +1793,7 @@ export default function DashboardHub() {
               <div className={styles.panelHeader}>
                 <div>
                   <span className={styles.kicker}>Accredited</span>
-                  <h2>Active MTV Records</h2>
+                  <h2>Accredited MTV Records</h2>
                 </div>
                 <Link href="/verify" className={styles.openFolder}>
                   Public verification
@@ -1422,7 +1803,7 @@ export default function DashboardHub() {
 
               <DataTable
                 title="Accredited MTVs - Central Luzon Region"
-                columns={ACCREDITED_TABLE_COLUMNS}
+                columns={accreditedTableColumns}
                 data={filteredAccreditedRecords}
                 loading={loading}
                 emptyText="No accredited records found."
@@ -1555,6 +1936,10 @@ export default function DashboardHub() {
                         <span className={styles.kicker}>Paper Trail</span>
                         <h2>Application Progress</h2>
                       </div>
+                      <button type="button" onClick={() => exportAuditTrail()}>
+                        <ArrowDownTrayIcon aria-hidden="true" />
+                        Download
+                      </button>
                     </div>
                     <ApplicationTrail
                       history={selectedApplication.statusHistory}
@@ -1780,10 +2165,11 @@ export default function DashboardHub() {
                     updateAccreditedAdvancedFilter("status", event.target.value)
                   }>
                   <option value="All">All statuses</option>
-                  <option value="Active">Active</option>
-                  <option value="Expired">Expired</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Revoked">Revoked</option>
+                  {ACCREDITED_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
                 </select>
               </label>
               <div className={styles.dateFilterField}>
@@ -1928,6 +2314,45 @@ export default function DashboardHub() {
         </div>
       ) : null}
 
+      {pendingAccreditedRecord ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) cancelStatusChange();
+          }}>
+          <div
+            className={styles.confirmModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="accredited-cancel-title">
+            <span className={styles.kicker}>Confirm Cancellation</span>
+            <h2 id="accredited-cancel-title">Cancel accredited MTV?</h2>
+            <p>
+              This will mark <strong>{pendingAccreditedRecord.reference}</strong>{" "}
+              with plate <strong>{pendingAccreditedRecord.plate || "No plate"}</strong>{" "}
+              as <strong>Cancelled</strong> in the Accredited sheet.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                disabled={saving}
+                onClick={cancelStatusChange}>
+                Keep active
+              </button>
+              <button
+                type="button"
+                className={styles.dangerButton}
+                disabled={saving}
+                onClick={confirmAccreditedCancellation}>
+                {saving ? "Cancelling..." : "Cancel MTV"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {pendingStatus && selectedApplication ? (
         <div
           className={styles.modalOverlay}
@@ -1949,12 +2374,12 @@ export default function DashboardHub() {
               notified by email.
             </p>
             <label className={styles.modalLabel} htmlFor="status-remarks">
-              Remarks {["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
+              Remarks {["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
             </label>
             <textarea
               id="status-remarks"
               className={styles.modalTextarea}
-              required={["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus)}
+              required={["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus)}
               disabled={isViewOnlyLocked}
               value={pendingRemarks}
               onChange={(event) => setPendingRemarks(event.target.value)}
@@ -1963,6 +2388,8 @@ export default function DashboardHub() {
                   ? "Tell the applicant what information or documents must be amended."
                   : pendingStatus === "Rejected Proof of Payment"
                     ? "Tell the applicant what proof of payment issue must be corrected."
+                  : pendingStatus === "Cancelled"
+                    ? "State the reason for cancelling this application."
                   : "Add optional notes for this status update."
               }
               rows={4}
@@ -1981,7 +2408,7 @@ export default function DashboardHub() {
                 disabled={
                   saving ||
                   isViewOnlyLocked ||
-                  (["Rejected Application", "Rejected Proof of Payment"].includes(pendingStatus) && !pendingRemarks.trim())
+                  (["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) && !pendingRemarks.trim())
                 }
                 onClick={confirmStatusChange}>
                 {saving ? "Updating..." : "Confirm update"}

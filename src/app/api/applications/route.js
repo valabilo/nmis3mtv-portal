@@ -12,7 +12,11 @@
  */
 
 import { NextResponse } from "next/server";
-import { saveApplication, updateApplication } from "@/lib/googleSheets";
+import {
+  saveApplication,
+  updateApplication,
+  validateRenewalApplication,
+} from "@/lib/googleSheets";
 import { deleteReplacedApplicationFiles } from "@/lib/driveService";
 import {
   sendApplicationConfirmation,
@@ -77,6 +81,10 @@ export async function POST(request) {
 
     const isAmendment =
       sanitized.applicationType === "Amendment" || Boolean(sanitized.amendmentRef);
+
+    if (sanitized.applicationType === "Renewal") {
+      await validateRenewalApplication(sanitized);
+    }
 
     const applicationData = {
       ...sanitized,

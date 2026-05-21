@@ -4,7 +4,19 @@
  */
 
 import { NextResponse } from "next/server";
-import { getBannedList } from "@/lib/googleSheets";
+import { getAccreditedList, getBannedList } from "@/lib/googleSheets";
+
+function normalize(value) {
+  return String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+}
+
+function firstValue(row, keys) {
+  for (const key of keys) {
+    if (row[key]) return row[key];
+  }
+
+  return "";
+}
 
 export async function POST(request) {
   try {
@@ -18,20 +30,33 @@ export async function POST(request) {
       );
     }
 
-    // Get banned list
-    const bannedList = await getBannedList();
+    const normalizedPlate = normalize(plate);
+    const [bannedList, accreditedList] = await Promise.all([
+      getBannedList(),
+      getAccreditedList(),
+    ]);
 
-    // Check if vehicle is banned
     const isBanned = bannedList.some(
-      (item) => item.plate?.toUpperCase() === plate.toUpperCase(),
+      (item) => normalize(item.plate || item.plate_no || item.plate_number) === normalizedPlate,
     );
+    const accredited = accreditedList.find(
+      (item) => normalize(item.plate || item.plate_no || item.plate_number) === normalizedPlate,
+    );
+    const accreditedStatus = firstValue(accredited || {}, ["status"]) || "Active";
+    const status = isBanned ? "Banned" : accredited ? accreditedStatus : "Not Found";
 
     return NextResponse.json(
       {
         success: true,
         plate,
-        status: isBanned ? "Banned" : "Verified",
+        status,
         isBanned,
+        isAccredited: Boolean(accredited),
+        registrationNo: firstValue(accredited || {}, [
+          "registration_no",
+          "ref_number",
+          "reference",
+        ]),
       },
       { status: 200 },
     );

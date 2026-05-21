@@ -307,6 +307,13 @@ export default function ApplicationStatusPanel() {
               <p>{application.remarks || 'No remarks have been added yet.'}</p>
             </div>
 
+            {application.status === 'Cancelled' ? (
+              <div className={styles.cancelledNotice}>
+                <strong>Application Cancelled</strong>
+                <p>This application is no longer active. Please contact NMIS RTOC III if you need clarification.</p>
+              </div>
+            ) : null}
+
             {application.orderOfPaymentUrl ? (
               <div className={styles.downloadCard}>
                 <div>

@@ -11,15 +11,29 @@ import { useEffect, useMemo, useState } from "react";
 import { useMTVData } from "@/hooks/useMTVData";
 
 function isExpired(record) {
+  const status = String(record.status || "").toLowerCase();
+  if (status === "cancelled" || status === "revoked" || status === "suspended") {
+    return false;
+  }
+
   const value = record.expiry || record.validity || "";
-  if (!value) return String(record.status || "").toLowerCase() === "expired";
+  if (!value) return status === "expired";
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return String(record.status || "").toLowerCase() === "expired";
+    return status === "expired";
   }
 
   return date < new Date();
+}
+
+function isActive(record) {
+  const status = String(record.status || "").toLowerCase();
+  if (["cancelled", "expired", "revoked", "suspended", "inactive"].includes(status)) {
+    return false;
+  }
+
+  return !isExpired(record);
 }
 
 function CountUp({ value, loading }) {
@@ -59,10 +73,7 @@ export default function HeroSection() {
   const heroStats = useMemo(() => {
     const total = data.length;
     const expired = data.filter(isExpired).length;
-    const active = data.filter((record) => {
-      const status = String(record.status || "").toLowerCase();
-      return status !== "expired" && !isExpired(record);
-    }).length;
+    const active = data.filter(isActive).length;
 
     return [
       { label: "Total MTV Issued", value: total },

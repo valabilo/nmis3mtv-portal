@@ -16,11 +16,36 @@
 }
 
 .step {
+  border: 0;
+  padding: 0;
+  background: transparent;
   display: flex;
   align-items: center;
   gap: 10px;
   color: var(--gray-500);
-  transition: var(--transition);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .16s ease;
+}
+
+.step:not(:disabled):hover {
+  color: var(--green);
+}
+
+.step:focus-visible {
+  outline: 3px solid rgba(26, 92, 50, .22);
+  outline-offset: 6px;
+  border-radius: 999px;
+}
+
+.step:disabled {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.step:not(:disabled):hover .num {
+  border-color: var(--green);
 }
 
 .num {
@@ -36,7 +61,11 @@
   font-size: .9rem;
   font-weight: 800;
   box-shadow: var(--shadow-sm);
-  transition: var(--transition);
+  transition:
+    background-color .16s ease,
+    border-color .16s ease,
+    color .16s ease,
+    box-shadow .16s ease;
 }
 
 .label {
@@ -51,7 +80,7 @@
   margin: 0 14px;
   background: var(--gray-200);
   flex: 0 0 72px;
-  transition: var(--transition);
+  transition: background-color .16s ease;
 }
 
 .done,

@@ -6,6 +6,7 @@ import {
   getGHPCompletions,
   upsertAccreditedFromApplication,
   upsertOnlinePaymentFromApplication,
+  updateAccreditedStatus,
   updateApplicationStatus,
 } from "@/lib/googleSheets";
 import { listFolderFiles } from "@/lib/driveService";
@@ -87,8 +88,17 @@ function firstValue(row, keys) {
 function accreditedStatus(row) {
   const status = firstValue(row, ["status"]);
   const normalizedStatus = status.trim().toLowerCase();
-  if (["active", "inactive", "suspended", "revoked"].includes(normalizedStatus)) {
-    return status;
+  const statusLabels = {
+    active: "Active",
+    inactive: "Inactive",
+    suspended: "Suspended",
+    revoked: "Revoked",
+    expired: "Expired",
+    cancelled: "Cancelled",
+  };
+
+  if (statusLabels[normalizedStatus]) {
+    return statusLabels[normalizedStatus];
   }
 
   return "Active";
@@ -99,7 +109,7 @@ function normalizeAccredited(row) {
     reference: firstValue(row, ["ref_number", "reference", "registration_no"]),
     plate: firstValue(row, ["plate", "plate_no", "plate_number"]),
     business: firstValue(row, ["business", "business_name", "bname", "establishment_name"]),
-    type: firstValue(row, ["establishment_type", "type", "vehicle_type", "vtype"]),
+    type: firstValue(row, ["establishment_type", "business_type", "type", "vehicle_type", "vtype"]),
     owner: firstValue(row, ["owner", "applicant", "registered_owner", "name", "name_of_owner"]),
     address: firstValue(row, ["address"]),
     telNo: firstValue(row, ["tel_no", "telephone_no", "contact", "phone"]),
@@ -227,6 +237,7 @@ export async function PATCH(request) {
     const reference = String(body.reference || "").trim();
     const status = String(body.status || "").trim();
     const remarks = String(body.remarks || "").trim();
+    const target = String(body.target || "application").trim().toLowerCase();
 
     if (!reference) {
       return NextResponse.json(
@@ -240,6 +251,22 @@ export async function PATCH(request) {
         { success: false, error: "Status is required." },
         { status: 400 },
       );
+    }
+
+    if (target === "accredited") {
+      const updated = await updateAccreditedStatus(reference, status);
+
+      return NextResponse.json({
+        success: true,
+        accredited: normalizeAccredited(updated),
+        effects: {
+          accredited: true,
+          onlinePayment: null,
+          applicantEmail: false,
+          nmisEmail: false,
+          errors: [],
+        },
+      });
     }
 
     const updated = await updateApplicationStatus(reference, status, remarks);
@@ -315,7 +342,13 @@ export async function PATCH(request) {
         success: false,
         error: error.message || "Failed to update application status.",
       },
-      { status: error.message === "Application not found." ? 404 : 500 },
+      {
+        status: ["Application not found.", "Accredited MTV record not found."].includes(
+          error.message,
+        )
+          ? 404
+          : 500,
+      },
     );
   }
 }

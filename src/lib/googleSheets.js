@@ -554,6 +554,7 @@ export async function updateApplicationStatus(refNumber, status, remarks = "") {
     "Payment Verified",
     "Rejected Proof of Payment",
     "Completed",
+    "Cancelled",
   ]);
 
   if (!allowedStatuses.has(status)) {
@@ -821,6 +822,7 @@ const ACCREDITED_HEADERS = [
 
 const REGISTRATION_PREFIX = "NMIS-III-";
 const REGISTRATION_SEQUENCE_FLOOR = 2593;
+const ACCREDITED_FORMULA_HEADERS = new Set(["validity", "valid", "remarks"]);
 
 function registrationSequence(value) {
   const match = String(value || "").match(/^NMIS-III-(\d+)$/i);
@@ -854,6 +856,329 @@ function nextRegistrationNumber(rows) {
   return formatRegistrationNumber(latest + 1);
 }
 
+function rowNumberFromUpdatedRange(range) {
+  const match = String(range || "").match(/![A-Z]+(\d+):/i);
+  return match ? Number(match[1]) : 0;
+}
+
+async function appendAccreditedRow(headers, rowValues, valuesByHeader) {
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+  const firstFormulaIndex = headers.findIndex((header) =>
+    ACCREDITED_FORMULA_HEADERS.has(header),
+  );
+  const appendValues =
+    firstFormulaIndex >= 0 ? rowValues.slice(0, firstFormulaIndex) : rowValues;
+
+  const response = await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: "Accredited",
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [appendValues],
+    },
+  });
+
+  const rowNumber = rowNumberFromUpdatedRange(response.data.updates?.updatedRange);
+  if (!rowNumber) return;
+
+  const postFormulaData = headers.flatMap((header, index) => {
+    if (index < firstFormulaIndex || ACCREDITED_FORMULA_HEADERS.has(header)) return [];
+    if (!(header in valuesByHeader)) return [];
+    return [
+      {
+        range: `${quoteSheetName("Accredited")}!${columnLabel(index + 1)}${rowNumber}`,
+        values: [[valuesByHeader[header]]],
+      },
+    ];
+  });
+
+  if (!postFormulaData.length) return;
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: "USER_ENTERED",
+      data: postFormulaData,
+    },
+  });
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+
+  const text = String(value).trim();
+  if (!text || /^(active|expired|inactive|suspended|revoked)$/i.test(text)) {
+    return null;
+  }
+
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  }
+
+  const slashMatch = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (slashMatch) {
+    const [, first, second, rawYear] = slashMatch;
+    const year = Number(rawYear.length === 2 ? `20${rawYear}` : rawYear);
+    const firstNumber = Number(first);
+    const secondNumber = Number(second);
+    const day = firstNumber > 12 ? firstNumber : secondNumber;
+    const month = firstNumber > 12 ? secondNumber : firstNumber;
+
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  if (/^\d+(\.\d+)?$/.test(text)) {
+    const serial = Number(text);
+    if (serial > 20000 && serial < 80000) {
+      const date = new Date(Date.UTC(1899, 11, 30));
+      date.setUTCDate(date.getUTCDate() + Math.floor(serial));
+      return date;
+    }
+  }
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
+function todayDateOnly() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
+function formatDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function addYears(date, years) {
+  const next = new Date(date);
+  next.setUTCFullYear(next.getUTCFullYear() + years);
+  return next;
+}
+
+function subtractMonths(date, months) {
+  const next = new Date(date);
+  next.setUTCMonth(next.getUTCMonth() - months);
+  return next;
+}
+
+function applicationTypeValue(application) {
+  return String(application.applicationType || application.application_type || "").trim();
+}
+
+function isRenewalApplication(application) {
+  return applicationTypeValue(application).toLowerCase() === "renewal";
+}
+
+function rowExpiryDate(row) {
+  const candidates = [
+    row?.expiry,
+    row?.expiry_date,
+    row?.expiration_date,
+    row?.valid_until,
+    row?.validity,
+    row?.valid,
+  ];
+
+  for (const candidate of candidates) {
+    const date = parseDateOnly(candidate);
+    if (date) return date;
+  }
+
+  return null;
+}
+
+function latestAccreditedByPlate(rows, plate) {
+  const normalizedPlate = normalizePlateKey(plate);
+  if (!normalizedPlate) return null;
+
+  return rows
+    .filter((row) => {
+      const rowPlate = normalizePlateKey(row.plate || row.plate_no || row.plate_number);
+      return rowPlate === normalizedPlate;
+    })
+    .sort((a, b) => {
+      const aExpiry = rowExpiryDate(a)?.getTime() || 0;
+      const bExpiry = rowExpiryDate(b)?.getTime() || 0;
+      return bExpiry - aExpiry;
+    })[0] || null;
+}
+
+function normalizePlateKey(value) {
+  return String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+}
+
+function applicationTimestamp(row) {
+  const date = new Date(row?.timestamp || "");
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function latestApplicationByPlate(rows, plate) {
+  const normalizedPlate = normalizePlateKey(plate);
+  if (!normalizedPlate) return null;
+
+  const matchingRows = rows.filter((row) => normalizePlateKey(row.plate) === normalizedPlate);
+  const completedRows = matchingRows.filter(
+    (row) => String(row.status || "").trim().toLowerCase() === "completed",
+  );
+  const candidates = completedRows.length ? completedRows : matchingRows;
+
+  return [...candidates].sort(
+    (a, b) => applicationTimestamp(b) - applicationTimestamp(a),
+  )[0] || null;
+}
+
+function renewalWindow(existing, now = todayDateOnly()) {
+  const expiry = rowExpiryDate(existing);
+  if (!existing || !expiry) {
+    return {
+      eligible: false,
+      error:
+        "Renewal is only allowed for MTVs with an existing accredited record and expiry date.",
+    };
+  }
+
+  const status = String(existing.status || "").trim().toLowerCase();
+  if (["cancelled", "inactive", "revoked", "suspended"].includes(status)) {
+    return {
+      eligible: false,
+      error: `Renewal is not allowed because this MTV accreditation is ${status}.`,
+    };
+  }
+
+  const windowStart = subtractMonths(expiry, 2);
+  if (now < windowStart) {
+    return {
+      eligible: false,
+      error: `This MTV is not yet expiring soon. Renewal is allowed only for expired MTVs or starting ${formatDateOnly(windowStart)}, two months before the current certificate expires on ${formatDateOnly(expiry)}.`,
+    };
+  }
+
+  const issueDate = now > expiry ? now : addDays(expiry, 1);
+  return {
+    eligible: true,
+    expiry,
+    issueDate,
+    nextExpiry: addYears(issueDate, 1),
+  };
+}
+
+export async function validateRenewalApplication(application) {
+  if (!isRenewalApplication(application)) return;
+
+  const rows = await readSheet("Accredited");
+  const existing = latestAccreditedByPlate(rows, application.plate);
+  const window = renewalWindow(existing);
+
+  if (!window.eligible) {
+    throw new Error(window.error);
+  }
+}
+
+export async function getRenewalPlateStatus(plate) {
+  const rows = await readSheet("Accredited");
+  const accredited = latestAccreditedByPlate(rows, plate);
+  if (!accredited) {
+    return {
+      exists: false,
+      eligible: false,
+      error: "No accredited MTV record was found for this plate number.",
+    };
+  }
+
+  const window = renewalWindow(accredited);
+  return {
+    exists: true,
+    eligible: window.eligible,
+    error: window.eligible ? "" : window.error,
+    currentExpiry: window.expiry ? formatDateOnly(window.expiry) : "",
+    nextIssueDate: window.issueDate ? formatDateOnly(window.issueDate) : "",
+    nextExpiry: window.nextExpiry ? formatDateOnly(window.nextExpiry) : "",
+  };
+}
+
+export async function getRenewalApplicationPrefill(plate) {
+  const [applications, accreditedRows] = await Promise.all([
+    readSheet("Applications"),
+    readSheet("Accredited"),
+  ]);
+  const accredited = latestAccreditedByPlate(accreditedRows, plate);
+  const window = renewalWindow(accredited);
+
+  if (!window.eligible) {
+    return {
+      eligible: false,
+      error: window.error,
+    };
+  }
+
+  const application = latestApplicationByPlate(applications, plate) || {};
+
+  return {
+    eligible: true,
+    currentExpiry: formatDateOnly(window.expiry),
+    nextIssueDate: formatDateOnly(window.issueDate),
+    nextExpiry: formatDateOnly(window.nextExpiry),
+    data: {
+      registeredOwner:
+        application.registered_owner ||
+        accredited?.owner ||
+        accredited?.name_of_owner ||
+        accredited?.applicant ||
+        "",
+      email: application.email || accredited?.email || "",
+      contact: application.contact || accredited?.contact || accredited?.tel_no || "",
+      address: application.address || accredited?.address || "",
+      region: application.region || "III",
+      province: application.province || "",
+      ghpCertNumber: application.ghp_cert_number || accredited?.ghp_cert_number || "",
+      plate: application.plate || accredited?.plate || accredited?.plate_no || plate || "",
+      vtype: application.vtype || accredited?.vehicle_type || accredited?.vtype || "",
+      vmake: application.vmake || "",
+      vmodel: application.vmodel || "",
+      vyear: application.vyear || "",
+      vcolor: application.vcolor || "",
+      vengine: application.vengine || "",
+      vchassis: application.vchassis || "",
+      crNumber: application.cr_number || "",
+      orNumber: application.or_number || "",
+      cooling: application.cooling || "",
+      capacity: application.capacity || "",
+      material: application.material || "",
+      meatEstablishment:
+        application.meat_establishment ||
+        accredited?.establishment_name ||
+        accredited?.business ||
+        accredited?.business_name ||
+        "",
+      intendedRoute: application.intended_route || "",
+      bname:
+        application.bname ||
+        accredited?.establishment_name ||
+        accredited?.business ||
+        accredited?.business_name ||
+        "",
+      btype:
+        application.btype ||
+        accredited?.establishment_type ||
+        accredited?.business_type ||
+        accredited?.type ||
+        "",
+      baddress: application.baddress || "",
+    },
+  };
+}
+
 export async function upsertAccreditedFromApplication(application) {
   await ensureHeaders("Accredited", ACCREDITED_HEADERS);
 
@@ -864,33 +1189,37 @@ export async function upsertAccreditedFromApplication(application) {
 
   const normalizedRef = String(application.ref_number || "").trim().toUpperCase();
   const normalizedPlate = String(application.plate || "").trim().toUpperCase();
-  const existing = rows.find((row) => {
+  const existingByPlate = latestAccreditedByPlate(rows, normalizedPlate);
+  const existingByRef = rows.find((row) => {
     const rowRef = String(row.ref_number || row.registration_no || "").trim().toUpperCase();
-    const rowPlate = String(row.plate || row.plate_no || row.plate_number || "")
-      .trim()
-      .toUpperCase();
-
-    return (normalizedRef && rowRef === normalizedRef) || (normalizedPlate && rowPlate === normalizedPlate);
+    return normalizedRef && rowRef === normalizedRef;
   });
+  const existing = existingByRef || existingByPlate;
 
   const now = new Date();
-  const expiry = new Date(now);
-  expiry.setFullYear(now.getFullYear() + 1);
+  let issueDate = todayDateOnly();
+  let expiry = addYears(issueDate, 1);
+
+  if (isRenewalApplication(application)) {
+    const window = renewalWindow(existingByPlate);
+    if (!window.eligible) throw new Error(window.error);
+    issueDate = window.issueDate;
+    expiry = window.nextExpiry;
+  }
+
   const registrationNo = existingRegistrationNumber(existing) || nextRegistrationNumber(rows);
+  const dateIssued = formatDateOnly(issueDate);
+  const expiryDate = formatDateOnly(expiry);
 
   const valuesByHeader = {
-    date_issued: now.toISOString().slice(0, 10),
+    date_issued: dateIssued,
     name_of_owner: application.registered_owner || "",
     address: application.address || "",
     establishment_type: application.btype || "",
     establishment_name: application.bname || application.meat_establishment || "",
     plate_no: application.plate || "",
     registration_no: registrationNo,
-    expiry: expiry.toISOString().slice(0, 10),
     receipt_no: "",
-    validity: "",
-    valid: "",
-    status: "Active",
     ref_number: registrationNo,
     reference: registrationNo,
     plate: application.plate || "",
@@ -900,16 +1229,15 @@ export async function upsertAccreditedFromApplication(application) {
     vehicle_type: application.vtype || "",
     owner: application.registered_owner || "",
     applicant: application.registered_owner || "",
-    expiry: expiry.toISOString().slice(0, 10),
-    expiry_date: expiry.toISOString().slice(0, 10),
-    expiration_date: expiry.toISOString().slice(0, 10),
-    valid_until: expiry.toISOString().slice(0, 10),
+    expiry: expiryDate,
+    expiry_date: expiryDate,
+    expiration_date: expiryDate,
+    valid_until: expiryDate,
     status: "Active",
-    approved_at: now.toISOString(),
+    approved_at: isRenewalApplication(application) ? dateIssued : now.toISOString(),
     email: application.email || "",
     contact: application.contact || "",
     ghp_cert_number: application.ghp_cert_number || "",
-    remarks: "",
   };
 
   const rowValues = headers.map((header) => valuesByHeader[header] ?? existing?.[header] ?? "");
@@ -917,18 +1245,83 @@ export async function upsertAccreditedFromApplication(application) {
   const spreadsheetId = getSpreadsheetId();
 
   if (existing) {
-    await sheets.spreadsheets.values.update({
+    const data = headers.flatMap((header, index) => {
+      if (ACCREDITED_FORMULA_HEADERS.has(header)) return [];
+      return [
+        {
+          range: `${quoteSheetName("Accredited")}!${columnLabel(index + 1)}${existing._rowNumber}`,
+          values: [[rowValues[index]]],
+        },
+      ];
+    });
+
+    await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
-      range: `${quoteSheetName("Accredited")}!A${existing._rowNumber}:${columnLabel(headers.length)}${existing._rowNumber}`,
-      valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [rowValues],
+        valueInputOption: "USER_ENTERED",
+        data,
       },
     });
     return;
   }
 
-  await appendRow("Accredited", rowValues);
+  await appendAccreditedRow(headers, rowValues, valuesByHeader);
+}
+
+export async function updateAccreditedStatus(reference, status) {
+  const allowedStatuses = new Set([
+    "Active",
+    "Inactive",
+    "Suspended",
+    "Revoked",
+    "Expired",
+    "Cancelled",
+  ]);
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error("Invalid accredited MTV status.");
+  }
+
+  await ensureHeaders("Accredited", ACCREDITED_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("Accredited");
+  const statusIndex = headers.indexOf("status");
+  if (statusIndex < 0) throw new Error("Accredited sheet is missing a status column.");
+
+  const normalizedRef = String(reference || "").trim().toUpperCase();
+  if (!normalizedRef) throw new Error("Registration number is required.");
+
+  const row = rows.find((item) => {
+    const candidates = [
+      item.registration_no,
+      item.ref_number,
+      item.reference,
+      item.plate_no,
+      item.plate,
+      item.plate_number,
+    ];
+
+    return candidates.some(
+      (candidate) => String(candidate || "").trim().toUpperCase() === normalizedRef,
+    );
+  });
+
+  if (!row) throw new Error("Accredited MTV record not found.");
+
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: getSpreadsheetId(),
+    range: `${quoteSheetName("Accredited")}!${columnLabel(statusIndex + 1)}${row._rowNumber}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[status]],
+    },
+  });
+
+  return {
+    ...row,
+    previousStatus: row.status || "Active",
+    status,
+  };
 }
 
 /**

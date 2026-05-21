@@ -448,6 +448,135 @@
   line-height: 1.45;
 }
 
+.analyticsHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid var(--dash-line);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  padding: 16px;
+}
+
+.analyticsHeader h2 {
+  color: var(--dash-text);
+  font-size: 1.12rem;
+  font-weight: 620;
+}
+
+.analyticsHeader p {
+  color: var(--dash-muted);
+  font-size: .84rem;
+  margin-top: 4px;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.monthlyChart {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(34px, 1fr));
+  align-items: end;
+  gap: 8px;
+  min-height: 260px;
+  border: 1px solid var(--dash-line);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #fbfcfb 0%, #ffffff 100%);
+  padding: 14px 12px 10px;
+}
+
+.monthColumn {
+  display: grid;
+  grid-template-rows: 20px 1fr 18px;
+  align-items: end;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+}
+
+.monthColumn strong,
+.monthColumn small {
+  color: var(--dash-muted);
+  font-size: .72rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.monthTrack {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #edf2ef;
+}
+
+.monthTrack span {
+  display: block;
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: #1f6f46;
+  transition: height .2s ease;
+}
+
+.barChart {
+  display: grid;
+  gap: 9px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(110px, .62fr) minmax(100px, 1fr) 36px 42px;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.barRow span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dash-text);
+  font-size: .8rem;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2ef;
+}
+
+.barTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #245b8f;
+}
+
+.barRow strong {
+  color: var(--dash-text);
+  font-size: .8rem;
+  font-weight: 650;
+  text-align: right;
+}
+
+.barRow small {
+  color: var(--dash-muted);
+  font-size: .72rem;
+  font-weight: 620;
+  text-align: right;
+}
+
 .panel {
   min-width: 0;
   padding: 16px;
@@ -499,6 +628,40 @@
   white-space: nowrap;
 }
 
+.cancelInlineButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fff7f7;
+  color: var(--dash-danger);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: .78rem;
+  font-weight: 650;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.cancelInlineButton:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.cancelInlineButton:disabled {
+  cursor: not-allowed;
+  opacity: .52;
+}
+
+.cancelInlineButton svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2;
+}
+
 .panelHeader button:hover,
 .statusEditor > div > button:hover,
 .openFolder:hover,
@@ -514,6 +677,7 @@
   opacity: .48;
 }
 
+.panelHeader button svg,
 .openFolder svg,
 .exportButton svg {
   flex: 0 0 auto;
@@ -1358,7 +1522,8 @@
 }
 
 .cancelButton,
-.confirmButton {
+.confirmButton,
+.dangerButton {
   min-height: 36px;
   border-radius: 7px;
   cursor: pointer;
@@ -1387,6 +1552,17 @@
 
 .confirmButton:hover {
   background: #185a38;
+}
+
+.dangerButton {
+  background: var(--dash-danger);
+  border: 1px solid var(--dash-danger);
+  color: #ffffff;
+}
+
+.dangerButton:hover {
+  background: #8a1d13;
+  border-color: #8a1d13;
 }
 
 .notificationStack {
@@ -1460,7 +1636,8 @@
 }
 
 .cancelButton:disabled,
-.confirmButton:disabled {
+.confirmButton:disabled,
+.dangerButton:disabled {
   cursor: not-allowed;
   opacity: .56;
 }
@@ -1477,6 +1654,10 @@
   .metricsGrid,
   .statsGrid,
   .documentGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analyticsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1501,6 +1682,10 @@
   }
 
   .sidebarCollapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .analyticsGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1552,7 +1737,8 @@
 
   .topbar,
   .panelHeader,
-  .toolbar {
+  .toolbar,
+  .analyticsHeader {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1587,6 +1773,24 @@
 
   .filterGrid {
     grid-template-columns: 1fr;
+  }
+
+  .monthlyChart {
+    grid-template-columns: repeat(6, minmax(38px, 1fr));
+  }
+
+  .barRow {
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+
+  .barTrack,
+  .barRow small {
+    grid-column: 1 / -1;
+  }
+
+  .barRow strong {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .advancedButton,
