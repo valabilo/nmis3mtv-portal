@@ -30,6 +30,7 @@ export default function Step2Vehicle({
   establishmentNames = [],
   loadingEstablishmentTypes = false,
   loadingEstablishmentNames = false,
+  lockPlate = false,
 }) {
   const selectedBusinessType = data.btype || "";
   const selectedEstablishment = data.meatEstablishment || "";
@@ -59,8 +60,10 @@ export default function Step2Vehicle({
             placeholder="ABC 1234"
             style={{ textTransform: "uppercase" }}
             maxLength="20"
+            disabled={lockPlate}
             {...f("plate")}
             onChange={(e) => {
+              if (lockPlate) return;
               // Remove special characters and normalize
               const value = e.target.value
                 .toUpperCase()

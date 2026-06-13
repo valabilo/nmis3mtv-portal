@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
+  BellIcon,
   ChartBarIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
@@ -36,6 +37,23 @@ const STATUSES = [
 ];
 
 const APPLICATION_STATUSES = ["Application Received", ...STATUSES];
+const REVIEW_STATUSES = [
+  "Under Review",
+  "For Payment",
+  "For Payment Verification",
+  "Payment Verified",
+];
+const APPROVED_STATUSES = ["Completed"];
+const FLAGGED_STATUSES = [
+  "Rejected Application",
+  "Rejected Proof of Payment",
+  "Cancelled",
+];
+const REMARKS_REQUIRED_STATUSES = [
+  "Rejected Application",
+  "Rejected Proof of Payment",
+  "Cancelled",
+];
 
 const ACCREDITED_STATUSES = [
   "Active",
@@ -79,6 +97,7 @@ const APPLICATION_EXPORT_COLUMNS = [
   ["Business Name", "businessName"],
   ["Business Type", "businessType"],
   ["Business Address", "businessAddress"],
+  ["Reference Number", "receiptNo"],
   ["Drive Folder", "folderUrl"],
 ];
 
@@ -180,6 +199,9 @@ const MONTHS = [
 ];
 
 const DASHBOARD_POLL_INTERVAL_MS = 30000;
+const MAX_DASHBOARD_NOTIFICATIONS = 20;
+const MAX_VISIBLE_TOASTS = 4;
+const NOTIFICATION_VISIBLE_MS = 15000;
 
 function formatDate(value) {
   if (!value) return "No date";
@@ -269,6 +291,41 @@ function formatTime(value) {
 function getDocumentPreviewUrl(document) {
   if (!document?.id) return "";
   return `https://drive.google.com/file/d/${encodeURIComponent(document.id)}/preview`;
+}
+
+function documentReviewStatus(document) {
+  return document?.reviewStatus || document?.review?.status || "";
+}
+
+function completedStatusBlockReason(application) {
+  if (!application) return "";
+
+  if (application.status !== "Payment Verified") {
+    return "Status can only be changed to Completed after Payment Verified.";
+  }
+
+  const blockedDocuments = (application.documents || []).filter(
+    (document) => documentReviewStatus(document) !== "Approved",
+  );
+
+  if (blockedDocuments.length) {
+    return "Status cannot be changed to Completed while documents are pending or rejected.";
+  }
+
+  return "";
+}
+
+function visibleDocumentsForApplication(application) {
+  const documents = application?.documents || [];
+  const rejectedDocuments = documents.filter(
+    (document) => documentReviewStatus(document) === "Rejected",
+  );
+
+  if (application?.status === "Rejected Application" && rejectedDocuments.length) {
+    return rejectedDocuments;
+  }
+
+  return documents;
 }
 
 function yearFromValue(value) {
@@ -377,6 +434,58 @@ function registrationNumberForApplication(application, accreditedRecords = []) {
   });
 
   return record?.reference || application.registrationNo || application.reference || "";
+}
+
+function buildApplicationNotification({ application, accreditedRecords, before, after }) {
+  const reference = application.reference;
+  const registrationNo = registrationNumberForApplication(application, accreditedRecords);
+  const owner = application.registeredOwner || "Applicant";
+  const base = {
+    reference,
+    tab: "details",
+  };
+
+  if (!before) {
+    const isAmendment = isAmendmentSnapshot(after);
+    return {
+      ...base,
+      title: isAmendment ? "Application amendment received" : "New application received",
+      message: isAmendment
+        ? `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`
+        : `Registration No.: ${registrationNo}. ${owner}`,
+    };
+  }
+
+  if (before.latestStatus !== after.latestStatus) {
+    return {
+      ...base,
+      title: "Application status updated",
+      message: `${reference} changed from ${before.latestStatus || "No status"} to ${after.latestStatus || "No status"}.`,
+    };
+  }
+
+  if (isAmendmentSnapshot(after)) {
+    return {
+      ...base,
+      title: "Application amendment received",
+      message: `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`,
+    };
+  }
+
+  if (before.latestTimestamp !== after.latestTimestamp) {
+    return {
+      ...base,
+      title: "Application update received",
+      message: `${reference} has a new update from ${owner}.`,
+    };
+  }
+
+  return null;
+}
+
+function notificationTimestamp(notification) {
+  if (!notification?.createdAt) return "";
+  return `${formatDate(notification.createdAt)} ${formatTime(notification.createdAt)}`.trim();
 }
 
 function sortDropdownOptions(options) {
@@ -740,12 +849,21 @@ export default function DashboardHub() {
   const [pendingRemarks, setPendingRemarks] = useState("");
   const [pendingAccreditedRecord, setPendingAccreditedRecord] = useState(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [documentReviewSaving, setDocumentReviewSaving] = useState("");
   const [recordLock, setRecordLock] = useState(null);
   const [dashboardNotifications, setDashboardNotifications] = useState([]);
+  const [visibleNotificationIds, setVisibleNotificationIds] = useState([]);
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const SidebarToggleIcon = sidebarCollapsed
     ? ChevronDoubleRightIcon
     : ChevronDoubleLeftIcon;
   const isViewOnlyLocked = Boolean(recordLock && !recordLock.isMine);
+  const unreadNotificationCount = dashboardNotifications.filter(
+    (notification) => !notification.read,
+  ).length;
+  const visibleNotifications = dashboardNotifications.filter((notification) =>
+    visibleNotificationIds.includes(notification.id),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -794,6 +912,17 @@ export default function DashboardHub() {
     [],
   );
 
+  useEffect(() => {
+    if (!error && !notice) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setError("");
+      setNotice("");
+    }, NOTIFICATION_VISIBLE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [error, notice]);
+
   async function refreshDashboardData() {
     const refreshed = await fetch("/api/admin/applications", {
       cache: "no-store",
@@ -814,23 +943,50 @@ export default function DashboardHub() {
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random()}`;
-    const nextNotification = { id, ...notification };
+    const nextNotification = {
+      id,
+      createdAt: new Date().toISOString(),
+      read: false,
+      ...notification,
+    };
 
-    setDashboardNotifications((items) => [...items, nextNotification].slice(-4));
+    setDashboardNotifications((items) =>
+      [nextNotification, ...items].slice(0, MAX_DASHBOARD_NOTIFICATIONS),
+    );
+    setVisibleNotificationIds((ids) =>
+      [id, ...ids].slice(0, MAX_VISIBLE_TOASTS),
+    );
 
     const timer = window.setTimeout(() => {
-      setDashboardNotifications((items) => items.filter((item) => item.id !== id));
+      setVisibleNotificationIds((ids) => ids.filter((item) => item !== id));
       notificationTimersRef.current.delete(id);
-    }, 9000);
+    }, NOTIFICATION_VISIBLE_MS);
 
     notificationTimersRef.current.set(id, timer);
   }
 
-  function dismissDashboardNotification(id) {
+  function hideDashboardToast(id) {
     const timer = notificationTimersRef.current.get(id);
     if (timer) window.clearTimeout(timer);
     notificationTimersRef.current.delete(id);
-    setDashboardNotifications((items) => items.filter((item) => item.id !== id));
+    setVisibleNotificationIds((ids) => ids.filter((item) => item !== id));
+  }
+
+  function openDashboardNotification(notification) {
+    setDashboardNotifications((items) =>
+      items.map((item) =>
+        item.id === notification.id ? { ...item, read: true } : item,
+      ),
+    );
+    hideDashboardToast(notification.id);
+    setNotificationPanelOpen(false);
+    selectApplication(notification.reference, notification.tab || "details");
+  }
+
+  function markAllDashboardNotificationsRead() {
+    setDashboardNotifications((items) =>
+      items.map((item) => ({ ...item, read: true })),
+    );
   }
 
   function detectApplicationNotifications(records, accredited = []) {
@@ -850,39 +1006,24 @@ export default function DashboardHub() {
       const before = previous.get(reference);
       const after = next.get(reference);
       if (!after) return;
-      const registrationNo = registrationNumberForApplication(
-        application,
-        accredited,
-      );
-
-      if (!before) {
-        const isAmendment = isAmendmentSnapshot(after);
-        pushDashboardNotification({
-          title: isAmendment
-            ? "Application amendment received"
-            : "New application received",
-          message: isAmendment
-            ? `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`
-            : `Registration No.: ${registrationNo}. ${application.registeredOwner || "New applicant"}`,
-          reference,
-          tab: "details",
-        });
-        return;
-      }
 
       const changed =
+        !before ||
         before.timestamp !== after.timestamp ||
         before.applicationType !== after.applicationType ||
         before.statusHistoryLength !== after.statusHistoryLength ||
+        before.latestStatus !== after.latestStatus ||
+        before.latestRemarks !== after.latestRemarks ||
         before.latestTimestamp !== after.latestTimestamp;
 
-      if (changed && isAmendmentSnapshot(after)) {
-        pushDashboardNotification({
-          title: "Application amendment received",
-          message: `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`,
-          reference,
-          tab: "details",
+      if (changed) {
+        const notification = buildApplicationNotification({
+          application,
+          accreditedRecords: accredited,
+          before,
+          after,
         });
+        if (notification) pushDashboardNotification(notification);
       }
     });
 
@@ -929,12 +1070,17 @@ export default function DashboardHub() {
     [applications, selectedRef],
   );
 
+  const visibleDocuments = useMemo(
+    () => visibleDocumentsForApplication(selectedApplication),
+    [selectedApplication],
+  );
+
   useEffect(() => {
     setDraftStatus(selectedApplication?.status || "");
   }, [selectedApplication]);
 
   useEffect(() => {
-    const documents = selectedApplication?.documents || [];
+    const documents = visibleDocuments;
     if (!documents.length) {
       setSelectedDocumentId("");
       return;
@@ -944,16 +1090,15 @@ export default function DashboardHub() {
       (document) => document.id === selectedDocumentId,
     );
     if (!currentStillExists) setSelectedDocumentId(documents[0].id);
-  }, [selectedApplication, selectedDocumentId]);
+  }, [visibleDocuments, selectedDocumentId]);
 
   const selectedDocument = useMemo(() => {
-    const documents = selectedApplication?.documents || [];
     return (
-      documents.find((document) => document.id === selectedDocumentId) ||
-      documents[0] ||
+      visibleDocuments.find((document) => document.id === selectedDocumentId) ||
+      visibleDocuments[0] ||
       null
     );
-  }, [selectedApplication, selectedDocumentId]);
+  }, [visibleDocuments, selectedDocumentId]);
 
   const accreditedTableColumns = useMemo(
     () => [
@@ -1019,9 +1164,6 @@ export default function DashboardHub() {
 
   const filteredApplications = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const reviewStatuses = ["Under Review", "For Payment", "For Payment Verification", "Payment Verified"];
-    const approvedStatuses = ["Completed"];
-    const flaggedStatuses = ["Rejected Application", "Rejected Proof of Payment", "Cancelled"];
 
     return applications.filter((application) => {
       const submittedDate = recordYearMonth(application.timestamp);
@@ -1029,11 +1171,11 @@ export default function DashboardHub() {
         statusFilter === "All" ||
         application.status === statusFilter ||
         (statusFilter === "ReviewGroup" &&
-          reviewStatuses.includes(application.status)) ||
+          REVIEW_STATUSES.includes(application.status)) ||
         (statusFilter === "ApprovedGroup" &&
-          approvedStatuses.includes(application.status)) ||
+          APPROVED_STATUSES.includes(application.status)) ||
         (statusFilter === "FlaggedGroup" &&
-          flaggedStatuses.includes(application.status));
+          FLAGGED_STATUSES.includes(application.status));
       const matchesYear = yearFilter === "All" || submittedDate.year === yearFilter;
       const matchesMonth =
         monthFilter === "All" || submittedDate.month === monthFilter;
@@ -1218,13 +1360,13 @@ export default function DashboardHub() {
   const metrics = useMemo(() => {
     const pending = applications.filter((item) => item.status === "Application Received").length;
     const activeReview = applications.filter((item) =>
-      ["Under Review", "For Payment", "For Payment Verification", "Payment Verified"].includes(item.status),
+      REVIEW_STATUSES.includes(item.status),
     ).length;
     const approved = applications.filter((item) =>
-      ["Completed"].includes(item.status),
+      APPROVED_STATUSES.includes(item.status),
     ).length;
     const flagged = applications.filter((item) =>
-      ["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(item.status),
+      FLAGGED_STATUSES.includes(item.status),
     ).length;
 
     return { pending, activeReview, approved, flagged };
@@ -1267,11 +1409,18 @@ export default function DashboardHub() {
       return;
     }
     if (!selectedApplication || nextStatus === selectedApplication.status) return;
+    if (nextStatus === "Completed") {
+      const blockReason = completedStatusBlockReason(selectedApplication);
+      if (blockReason) {
+        setError(blockReason);
+        return;
+      }
+    }
     setPendingStatus(nextStatus);
     setPendingRemarks("");
   }
 
-  async function submitStatusUpdate(nextStatus, successPrefix) {
+  async function submitStatusUpdate(nextStatus) {
     if (isViewOnlyLocked) {
       setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
       return;
@@ -1306,33 +1455,9 @@ export default function DashboardHub() {
       );
       await refreshDashboardData();
 
-      const effectMessages = [];
-      if (nextStatus === "Completed") {
-        effectMessages.push(
-          json.effects?.accredited
-            ? "Accredited sheet synced."
-            : "Accredited sheet did not sync.",
-        );
-      }
-      if (nextStatus === "For Payment") {
-        effectMessages.push(
-          json.effects?.onlinePayment
-            ? "Online Payment sheet synced."
-            : "Online Payment sheet did not sync.",
-        );
-      }
-      effectMessages.push(
-        json.effects?.applicantEmail
-          ? "Applicant emailed."
-          : "Applicant email was not sent.",
-      );
-      effectMessages.push(
-        json.effects?.nmisEmail ? "NMIS emailed." : "NMIS email was not sent.",
-      );
-      if (json.effects?.errors?.length) {
-        effectMessages.push(json.effects.errors.join(" "));
-      }
-      setNotice(`${successPrefix || `Status updated to ${nextStatus}.`} ${effectMessages.join(" ")}`);
+      const previousStatus =
+        json.application?.previousStatus || selectedApplication.status || "Application Received";
+      setNotice(`Successfully changed the status from ${previousStatus} to ${nextStatus}.`);
       setDraftStatus(nextStatus);
     } catch (err) {
       setError(err.message || "Failed to update status.");
@@ -1340,6 +1465,68 @@ export default function DashboardHub() {
       setSaving(false);
       setPendingStatus("");
       setPendingRemarks("");
+    }
+  }
+
+  async function updateDocumentReview(document, reviewStatus) {
+    if (isViewOnlyLocked) {
+      setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
+      return;
+    }
+    if (!selectedApplication || !document?.id) return;
+
+    setDocumentReviewSaving(`${document.id}:${reviewStatus}`);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/admin/applications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: "document",
+          reference: selectedApplication.reference,
+          documentId: document.id,
+          documentName: document.name,
+          status: reviewStatus,
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Failed to update document review.");
+      }
+
+      const nextReview = {
+        id: document.id,
+        name: document.name,
+        status: reviewStatus,
+        reviewedAt: new Date().toISOString(),
+      };
+
+      setApplications((records) =>
+        records.map((record) =>
+          record.reference === selectedApplication.reference
+            ? {
+                ...record,
+                documentReview: {
+                  ...(record.documentReview || {}),
+                  [document.id]: nextReview,
+                },
+                documents: (record.documents || []).map((item) =>
+                  item.id === document.id
+                    ? { ...item, review: nextReview, reviewStatus }
+                    : item,
+                ),
+              }
+            : record,
+        ),
+      );
+      setNotice(`${document.name} marked as ${reviewStatus.toLowerCase()}.`);
+    } catch (err) {
+      setError(err.message || "Failed to update document review.");
+    } finally {
+      setDocumentReviewSaving("");
     }
   }
 
@@ -1353,14 +1540,24 @@ export default function DashboardHub() {
     if (!selectedApplication || !pendingStatus) return;
 
     if (
-      ["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) &&
+      REMARKS_REQUIRED_STATUSES.includes(pendingStatus) &&
       !pendingRemarks.trim()
     ) {
       setError("Remarks are required when rejecting or cancelling a record.");
       return;
     }
 
-    await submitStatusUpdate(pendingStatus, `Status updated to ${pendingStatus}.`);
+    if (pendingStatus === "Completed") {
+      const blockReason = completedStatusBlockReason(selectedApplication);
+      if (blockReason) {
+        setError(blockReason);
+        setPendingStatus("");
+        setPendingRemarks("");
+        return;
+      }
+    }
+
+    await submitStatusUpdate(pendingStatus);
   }
 
   async function confirmAccreditedCancellation() {
@@ -1535,6 +1732,57 @@ export default function DashboardHub() {
           </div>
           <div className={styles.topbarMeta}>
             <span>{applications.length} applications</span>
+            <div className={styles.notificationBellWrap}>
+              <button
+                type="button"
+                className={styles.notificationBell}
+                onClick={() => setNotificationPanelOpen((open) => !open)}
+                aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+                aria-expanded={notificationPanelOpen}>
+                <BellIcon aria-hidden="true" />
+                {unreadNotificationCount ? (
+                  <span className={styles.notificationBadge}>
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {notificationPanelOpen ? (
+                <div className={styles.notificationPanel}>
+                  <div className={styles.notificationPanelHeader}>
+                    <strong>Notifications</strong>
+                    {dashboardNotifications.length ? (
+                      <button type="button" onClick={markAllDashboardNotificationsRead}>
+                        Mark all read
+                      </button>
+                    ) : null}
+                  </div>
+                  {dashboardNotifications.length ? (
+                    <div className={styles.notificationList}>
+                      {dashboardNotifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          className={
+                            notification.read
+                              ? styles.notificationItem
+                              : styles.notificationItemUnread
+                          }
+                          onClick={() => openDashboardNotification(notification)}>
+                          <span>
+                            <strong>{notification.title}</strong>
+                            <small>{notificationTimestamp(notification)}</small>
+                          </span>
+                          <em>{notification.message}</em>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={styles.notificationEmpty}>No new notifications.</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <button type="button" onClick={handleLogout}>
               Logout
             </button>
@@ -1911,6 +2159,7 @@ export default function DashboardHub() {
                       <InfoRow label="Chassis Number" value={selectedApplication.chassisNumber} />
                       <InfoRow label="CR Number" value={selectedApplication.crNumber} />
                       <InfoRow label="OR Number" value={selectedApplication.orNumber} />
+                      <InfoRow label="Reference Number" value={selectedApplication.receiptNo} />
                       <InfoRow label="Cooling System" value={selectedApplication.coolingSystem} />
                       <InfoRow label="Material" value={selectedApplication.material} />
                     </div>
@@ -1969,30 +2218,62 @@ export default function DashboardHub() {
                     ) : null}
                   </div>
 
-                  {selectedApplication.documents?.length ? (
-                    <>
+                  {visibleDocuments.length ? (
+                    <div className={styles.documentReviewBody}>
                       <div className={styles.reviewDocumentSelect}>
                         <Dropdown
                           id="document-review"
                           label="Document"
                           value={selectedDocument?.id || ""}
-                          options={selectedApplication.documents.map((document) => ({
+                          options={visibleDocuments.map((document) => ({
                             value: document.id,
-                            label: document.name,
+                            label: documentReviewStatus(document)
+                              ? `${document.name} (${documentReviewStatus(document)})`
+                              : document.name,
                           }))}
                           onChange={setSelectedDocumentId}
                         />
                       </div>
 
                       {selectedDocument ? (
-                        <iframe
-                          className={styles.documentPreview}
-                          src={getDocumentPreviewUrl(selectedDocument)}
-                          title={`Preview of ${selectedDocument.name}`}
-                          loading="lazy"
-                        />
+                        <>
+                          <div className={styles.documentReviewActions}>
+                            <span
+                              className={
+                                documentReviewStatus(selectedDocument) === "Approved"
+                                  ? styles.documentApproved
+                                  : documentReviewStatus(selectedDocument) === "Rejected"
+                                    ? styles.documentRejected
+                                    : styles.documentPending
+                              }>
+                              {documentReviewStatus(selectedDocument) || "Pending review"}
+                            </span>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => updateDocumentReview(selectedDocument, "Approved")}
+                                disabled={Boolean(documentReviewSaving) || isViewOnlyLocked}>
+                                <ShieldCheckIcon aria-hidden="true" />
+                                Approved
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateDocumentReview(selectedDocument, "Rejected")}
+                                disabled={Boolean(documentReviewSaving) || isViewOnlyLocked}>
+                                <XCircleIcon aria-hidden="true" />
+                                Rejected
+                              </button>
+                            </div>
+                          </div>
+                          <iframe
+                            className={styles.documentPreview}
+                            src={getDocumentPreviewUrl(selectedDocument)}
+                            title={`Preview of ${selectedDocument.name}`}
+                            loading="lazy"
+                          />
+                        </>
                       ) : null}
-                    </>
+                    </div>
                   ) : (
                     <p className={styles.emptyState}>
                       No document files were returned for this application.
@@ -2033,7 +2314,7 @@ export default function DashboardHub() {
               ) : null}
 
               <div className={styles.documentGrid}>
-                {(selectedApplication?.documents || []).map((document) => (
+                {visibleDocuments.map((document) => (
                   <a
                     key={document.id}
                     href={document.webViewLink || document.webContentLink}
@@ -2043,6 +2324,16 @@ export default function DashboardHub() {
                     <DocumentTextIcon aria-hidden="true" />
                     <span>
                       <strong>{document.name}</strong>
+                      {documentReviewStatus(document) ? (
+                        <em
+                          className={
+                            documentReviewStatus(document) === "Approved"
+                              ? styles.documentStatusApproved
+                              : styles.documentStatusRejected
+                          }>
+                          {documentReviewStatus(document)}
+                        </em>
+                      ) : null}
                       {document.mimeType}
                     </span>
                     <ArrowTopRightOnSquareIcon aria-hidden="true" />
@@ -2061,27 +2352,24 @@ export default function DashboardHub() {
         )}
       </main>
 
-      {dashboardNotifications.length ? (
+      {visibleNotifications.length ? (
         <div
           className={styles.notificationStack}
           aria-live="polite"
           aria-label="Dashboard notifications">
-          {dashboardNotifications.map((notification) => (
+          {visibleNotifications.map((notification) => (
             <article key={notification.id} className={styles.dashboardToast}>
               <button
                 type="button"
                 className={styles.toastDismiss}
-                onClick={() => dismissDashboardNotification(notification.id)}
+                onClick={() => hideDashboardToast(notification.id)}
                 aria-label="Dismiss notification">
                 x
               </button>
               <button
                 type="button"
                 className={styles.toastContent}
-                onClick={() => {
-                  selectApplication(notification.reference, notification.tab || "details");
-                  dismissDashboardNotification(notification.id);
-                }}>
+                onClick={() => openDashboardNotification(notification)}>
                 <strong>{notification.title}</strong>
                 <span>{notification.message}</span>
               </button>
@@ -2377,12 +2665,12 @@ export default function DashboardHub() {
               notified by email.
             </p>
             <label className={styles.modalLabel} htmlFor="status-remarks">
-              Remarks {["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
+              Remarks {REMARKS_REQUIRED_STATUSES.includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
             </label>
             <textarea
               id="status-remarks"
               className={styles.modalTextarea}
-              required={["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus)}
+              required={REMARKS_REQUIRED_STATUSES.includes(pendingStatus)}
               disabled={isViewOnlyLocked}
               value={pendingRemarks}
               onChange={(event) => setPendingRemarks(event.target.value)}
@@ -2411,7 +2699,7 @@ export default function DashboardHub() {
                 disabled={
                   saving ||
                   isViewOnlyLocked ||
-                  (["Rejected Application", "Rejected Proof of Payment", "Cancelled"].includes(pendingStatus) && !pendingRemarks.trim())
+                  (REMARKS_REQUIRED_STATUSES.includes(pendingStatus) && !pendingRemarks.trim())
                 }
                 onClick={confirmStatusChange}>
                 {saving ? "Updating..." : "Confirm update"}

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { recordApplicantPaymentReference } from "@/lib/googleSheets";
+import {
+  deleteReplacedProofPaymentFiles,
+  trashDriveFiles,
+} from "@/lib/driveService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,10 +49,31 @@ export async function POST(request) {
       fileName: proofFileName,
     });
 
+    if (result.replacedProofFileId) {
+      try {
+        await trashDriveFiles([result.replacedProofFileId]);
+      } catch (deleteError) {
+        console.error("Previous proof of payment cleanup failed:", deleteError);
+      }
+    }
+
+    try {
+      await deleteReplacedProofPaymentFiles({
+        folderId: result.application.drive_folder_id,
+        refNumber: reference,
+        keepFileIds: [proofFileId],
+      });
+    } catch (deleteError) {
+      console.error("Old proof of payment file cleanup failed:", deleteError);
+    }
+
     return NextResponse.json({
       success: true,
       status: result.application.status || "For Payment Verification",
-      paymentReference: result.onlinePayment.payment_reference_number || paymentReference,
+      paymentReference:
+        result.onlinePayment.reference_number ||
+        result.onlinePayment.payment_reference_number ||
+        paymentReference,
       proofFileName: result.onlinePayment.proof_of_payment_file_name || proofFileName,
       message: "Proof of payment submitted for NMIS verification.",
     });

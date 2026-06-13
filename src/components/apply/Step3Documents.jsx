@@ -52,7 +52,7 @@ export default function Step3Documents({ files, setFiles, agree, setAgree, onBac
 
       <div className={docStyles.docList}>
         {REQUIRED_DOCS.map(doc => (
-          <div key={doc.id} className={docStyles.docItem}>
+          <div key={doc.id} className={docStyles.docItem} id={`doc_${doc.id}`}>
             <label className={docStyles.docLabel}>
               {getDocName(doc)} {doc.required && !isAmendment ? <span className="req">*</span> : <span style={{ color: 'var(--gray-500)', fontWeight: 600 }}>(optional)</span>}
             </label>
@@ -106,6 +106,7 @@ export default function Step3Documents({ files, setFiles, agree, setAgree, onBac
       </div>
       <label className={docStyles.agreeLabel}>
         <input
+          id="document-agreement"
           type="checkbox"
           checked={agree}
           onChange={e => setAgree(e.target.checked)}

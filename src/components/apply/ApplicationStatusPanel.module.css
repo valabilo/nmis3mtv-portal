@@ -276,15 +276,19 @@
 }
 
 .paymentForm {
-  align-items: end;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(190px, .8fr) minmax(260px, 1.2fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  margin-inline: auto;
+  max-width: 520px;
+  width: 100%;
 }
 
 .paymentField {
   display: grid;
   gap: 6px;
+  width: 100%;
 }
 
 .paymentField > span {
@@ -297,6 +301,23 @@
 .paymentField input {
   letter-spacing: .4px;
   width: 100%;
+}
+
+.paymentActions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: center;
+  width: 100%;
+}
+
+.paymentForm .downloadButton {
+  justify-self: center;
+}
+
+.paymentSummary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hiddenFile {
@@ -386,6 +407,57 @@
   font-weight: 800;
 }
 
+.modalOverlay {
+  align-items: center;
+  background: rgba(15, 23, 42, .48);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 90;
+}
+
+.successModal {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  max-width: 420px;
+  padding: 24px;
+  width: 100%;
+}
+
+.successModal span {
+  color: var(--green);
+  display: block;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.successModal h2 {
+  color: var(--gray-900);
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.successModal p {
+  color: var(--gray-700);
+  font-size: .92rem;
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+
+.successModal .downloadButton {
+  display: flex;
+  margin-left: auto;
+  min-width: 88px;
+}
+
 @media (max-width: 640px) {
   .searchRow {
     flex-direction: column;
@@ -402,6 +474,18 @@
 
   .paymentForm {
     align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .paymentActions {
+    justify-content: center;
+  }
+
+  .paymentForm .downloadButton {
+    justify-self: center;
+  }
+
+  .paymentSummary {
     grid-template-columns: 1fr;
   }
 }

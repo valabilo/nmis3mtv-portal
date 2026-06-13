@@ -306,6 +306,161 @@
   border-color: rgba(255, 255, 255, .38);
 }
 
+.notificationBellWrap {
+  position: relative;
+}
+
+.topbarMeta .notificationBell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+}
+
+.notificationBell svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border: 2px solid var(--green);
+  border-radius: 999px;
+  background: #b42318;
+  color: #ffffff;
+  font-size: .64rem;
+  font-weight: 750;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.notificationPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 140;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(430px, calc(100vh - 100px));
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #ffffff;
+  border: 1px solid var(--dash-line);
+  border-radius: 8px;
+  box-shadow: 0 24px 54px rgba(17, 24, 39, .22);
+  color: var(--dash-text);
+}
+
+.notificationPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--dash-line);
+  padding: 12px 14px;
+}
+
+.notificationPanelHeader strong {
+  font-size: .9rem;
+  font-weight: 680;
+}
+
+.topbarMeta .notificationPanelHeader button {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--dash-accent);
+  font-size: .76rem;
+  padding: 0;
+}
+
+.topbarMeta .notificationPanelHeader button:hover {
+  background: transparent;
+  color: #134f31;
+}
+
+.notificationList {
+  overflow: auto;
+  padding: 6px;
+}
+
+.topbarMeta .notificationItem,
+.topbarMeta .notificationItemUnread {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.topbarMeta .notificationItemUnread {
+  background: var(--dash-accent-soft);
+  border-color: #cde6d7;
+}
+
+.topbarMeta .notificationItem:hover,
+.topbarMeta .notificationItemUnread:hover {
+  background: #f3f6f4;
+  border-color: #d8e3dc;
+}
+
+.notificationItem span,
+.notificationItemUnread span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notificationItem strong,
+.notificationItemUnread strong {
+  color: var(--dash-text);
+  font-size: .84rem;
+  font-weight: 670;
+}
+
+.notificationItem small,
+.notificationItemUnread small {
+  flex: 0 0 auto;
+  color: var(--dash-muted);
+  font-size: .69rem;
+  font-weight: 560;
+}
+
+.notificationItem em,
+.notificationItemUnread em {
+  color: var(--dash-muted);
+  font-size: .78rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.notificationEmpty {
+  margin: 0;
+  color: var(--dash-muted);
+  font-size: .82rem;
+  padding: 18px 14px;
+}
+
 .section {
   display: grid;
   gap: 16px;
@@ -1019,8 +1174,14 @@
   position: sticky;
   top: 14px;
   display: grid;
-  grid-template-rows: auto auto minmax(420px, calc(100vh - 250px));
+  grid-template-rows: auto minmax(420px, calc(100vh - 250px));
   min-height: 620px;
+}
+
+.documentReviewBody {
+  display: grid;
+  grid-template-rows: auto auto minmax(420px, 1fr);
+  min-height: 0;
 }
 
 .reviewDocumentSelect {
@@ -1105,6 +1266,89 @@
   border: 1px solid var(--dash-line);
   border-radius: 7px;
   background: #f9fafb;
+}
+
+.documentReviewActions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 0 0 12px;
+}
+
+.documentReviewActions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.documentReviewActions button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--dash-line);
+  border-radius: 7px;
+  color: var(--dash-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 650;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.documentReviewActions button:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: var(--dash-line-strong);
+}
+
+.documentReviewActions button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.documentReviewActions svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.9;
+}
+
+.documentApproved,
+.documentRejected,
+.documentPending,
+.documentStatusApproved,
+.documentStatusRejected {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: .7rem;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1;
+  padding: 5px 8px;
+  width: max-content;
+}
+
+.documentApproved,
+.documentStatusApproved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.documentRejected,
+.documentStatusRejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.documentPending {
+  background: #f3f4f6;
+  color: var(--dash-muted);
+}
+
+.documentStatusApproved,
+.documentStatusRejected {
+  margin: 2px 0;
 }
 
 .statusEditor {
@@ -1759,7 +2003,20 @@
   }
 
   .reviewPanel {
-    grid-template-rows: auto auto minmax(420px, 65vh);
+    grid-template-rows: auto minmax(420px, 65vh);
+  }
+
+  .documentReviewActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .documentReviewActions > div {
+    justify-content: stretch;
+  }
+
+  .documentReviewActions button {
+    justify-content: center;
   }
 
   .reviewDocumentButton,

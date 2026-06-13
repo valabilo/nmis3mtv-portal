@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getApplicationByRef,
   getAccreditedList,
   getApplications,
   getCertificateIssuance,
@@ -7,6 +8,7 @@ import {
   upsertAccreditedFromApplication,
   upsertOnlinePaymentFromApplication,
   updateAccreditedStatus,
+  updateApplicationDocumentReview,
   updateApplicationStatus,
 } from "@/lib/googleSheets";
 import { listFolderFiles } from "@/lib/driveService";
@@ -22,6 +24,7 @@ export const runtime = "nodejs";
 function normalizeApplication(row) {
   const folderId = row.drive_folder_id || "";
   let statusHistory = [];
+  let documentReview = {};
 
   try {
     statusHistory = row.status_history ? JSON.parse(row.status_history) : [];
@@ -37,6 +40,12 @@ function normalizeApplication(row) {
         timestamp: row.timestamp || "",
       },
     ];
+  }
+
+  try {
+    documentReview = row.document_review ? JSON.parse(row.document_review) : {};
+  } catch {
+    documentReview = {};
   }
 
   return {
@@ -69,12 +78,60 @@ function normalizeApplication(row) {
     chassisNumber: row.vchassis || "",
     crNumber: row.cr_number || "",
     orNumber: row.or_number || "",
+    receiptNo: row.reference_number || row.receipt_no || "",
     coolingSystem: row.cooling || "",
     material: row.material || "",
     meatEstablishment: row.meat_establishment || "",
     intendedRoute: row.intended_route || "",
     documents: [],
+    documentReview,
   };
+}
+
+function parseDocumentReview(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+async function validateCompletionRequirements(reference) {
+  const application = await getApplicationByRef(reference);
+  if (!application) throw new Error("Application not found.");
+
+  if (String(application.status || "").trim() !== "Payment Verified") {
+    throw new Error("Status can only be changed to Completed after Payment Verified.");
+  }
+
+  const folderId = application.drive_folder_id || "";
+  if (!folderId) return;
+
+  let documents = [];
+  try {
+    documents = await listFolderFiles(folderId);
+  } catch (error) {
+    console.error("Completion document validation failed:", error);
+    throw new Error("Documents could not be verified before completing this application.");
+  }
+
+  const documentReview = parseDocumentReview(application.document_review);
+  const blockedDocuments = documents.filter((document) => {
+    const reviewStatus = String(documentReview?.[document.id]?.status || "").trim();
+    return reviewStatus !== "Approved";
+  });
+
+  if (blockedDocuments.length) {
+    throw new Error(
+      "Status cannot be changed to Completed while documents are pending or rejected.",
+    );
+  }
 }
 
 function firstValue(row, keys) {
@@ -170,7 +227,13 @@ export async function GET(request) {
         if (!application.folderId) return application;
 
         try {
-          application.documents = await listFolderFiles(application.folderId);
+          application.documents = (await listFolderFiles(application.folderId)).map(
+            (document) => ({
+              ...document,
+              review: application.documentReview?.[document.id] || null,
+              reviewStatus: application.documentReview?.[document.id]?.status || "",
+            }),
+          );
         } catch (error) {
           console.error("Admin document listing error:", error);
           application.documentsError = "Documents could not be loaded.";
@@ -269,6 +332,31 @@ export async function PATCH(request) {
       });
     }
 
+    if (target === "document") {
+      const documentId = String(body.documentId || "").trim();
+      const documentName = String(body.documentName || "").trim();
+      const updated = await updateApplicationDocumentReview({
+        refNumber: reference,
+        documentId,
+        documentName,
+        status,
+      });
+
+      return NextResponse.json({
+        success: true,
+        application: normalizeApplication(updated),
+        documentReview: JSON.parse(updated.document_review || "{}"),
+        effects: {
+          documentReview: true,
+          errors: [],
+        },
+      });
+    }
+
+    if (status === "Completed") {
+      await validateCompletionRequirements(reference);
+    }
+
     const updated = await updateApplicationStatus(reference, status, remarks);
     const application = normalizeApplication(updated);
     application.previousStatus = updated.previousStatus || "Application Received";
@@ -337,17 +425,24 @@ export async function PATCH(request) {
     });
   } catch (error) {
     console.error("Admin application status update error:", error);
+    const notFoundErrors = ["Application not found.", "Accredited MTV record not found."];
+    const validationErrors = [
+      "Status can only be changed to Completed after Payment Verified.",
+      "Documents could not be verified before completing this application.",
+      "Status cannot be changed to Completed while documents are pending or rejected.",
+    ];
+
     return NextResponse.json(
       {
         success: false,
         error: error.message || "Failed to update application status.",
       },
       {
-        status: ["Application not found.", "Accredited MTV record not found."].includes(
-          error.message,
-        )
+        status: notFoundErrors.includes(error.message)
           ? 404
-          : 500,
+          : validationErrors.includes(error.message)
+            ? 400
+            : 500,
       },
     );
   }

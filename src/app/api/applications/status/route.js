@@ -46,6 +46,17 @@ export async function GET(request) {
       : "—";
 
     const onlinePayment = await getOnlinePaymentRecord(row.ref_number);
+    const onlinePaymentReference = String(onlinePayment?.reference_number || "").trim();
+    const legacyPaymentReference = String(
+      onlinePayment?.payment_reference_number ||
+        onlinePayment?.payment_ref_number ||
+        "",
+    ).trim();
+    const paymentReference =
+      onlinePaymentReference &&
+      onlinePaymentReference.toUpperCase() !== row.ref_number.toUpperCase()
+        ? onlinePaymentReference
+        : legacyPaymentReference;
 
     return NextResponse.json({
       success: true,
@@ -60,11 +71,9 @@ export async function GET(request) {
         status: row.status || "Application Received",
         submittedAt,
         remarks: row.remarks || "",
+        receiptNo: row.reference_number || row.receipt_no || "",
         folderId: row.drive_folder_id || "",
-        paymentReference:
-          onlinePayment?.payment_reference_number ||
-          onlinePayment?.payment_ref_number ||
-          "",
+        paymentReference,
         paymentSubmittedAt: onlinePayment?.payment_submitted_at || "",
         proofOfPaymentFileName: onlinePayment?.proof_of_payment_file_name || "",
         orderOfPaymentUrl:

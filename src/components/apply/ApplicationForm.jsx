@@ -270,6 +270,7 @@ export default function ApplicationForm() {
   const amendmentRef = searchParams.get("amend") || "";
   const normalizedAmendmentRef = amendmentRef.trim().toUpperCase();
   const formRef = useRef(null);
+  const optimisticRef = useRef(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [originalAmendmentData, setOriginalAmendmentData] = useState(null);
@@ -285,6 +286,7 @@ export default function ApplicationForm() {
   const [renewalPlate, setRenewalPlate] = useState("");
   const [renewalLookupLoading, setRenewalLookupLoading] = useState(false);
   const [renewalLookupError, setRenewalLookupError] = useState("");
+  const [renewalPlateLocked, setRenewalPlateLocked] = useState(false);
   const [establishmentTypes, setEstablishmentTypes] = useState([]);
   const [establishmentNames, setEstablishmentNames] = useState([]);
   const [loadingEstablishmentTypes, setLoadingEstablishmentTypes] =
@@ -381,6 +383,7 @@ export default function ApplicationForm() {
           applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         });
+        setRenewalPlateLocked(false);
         setStep(draft.step);
         setAgree(draft.agree);
       } else {
@@ -389,6 +392,7 @@ export default function ApplicationForm() {
           applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         }));
+        setRenewalPlateLocked(false);
       }
 
       try {
@@ -450,11 +454,15 @@ export default function ApplicationForm() {
         amendmentRef: "",
       });
       setOriginalAmendmentData(null);
+      setRenewalPlateLocked(
+        draft.formData.applicationType === "Renewal" && Boolean(draft.formData.plate),
+      );
       setStep(draft.step);
       setAgree(draft.agree);
     } else {
       setFormData(INITIAL_FORM);
       setOriginalAmendmentData(null);
+      setRenewalPlateLocked(false);
     }
     setAmendmentClosedMessage("");
     setDraftReady(true);
@@ -486,6 +494,8 @@ export default function ApplicationForm() {
   }, [agree, draftReady, formData, step, submitted]);
 
   function updateField(key, value) {
+    if (key === "plate" && renewalPlateLocked) return;
+
     if (key === "applicationType") {
       if (value === "Renewal" && !formData.amendmentRef) {
         setFormData((prev) => ({ ...prev, applicationType: "Renewal" }));
@@ -497,6 +507,7 @@ export default function ApplicationForm() {
 
       setRenewalModalOpen(false);
       setRenewalLookupError("");
+      setRenewalPlateLocked(false);
       if (value === "New") {
         resetToNewApplication();
         return;
@@ -512,6 +523,7 @@ export default function ApplicationForm() {
     setAmendmentFolderId("");
     setRenewalPlate("");
     setRenewalLookupError("");
+    setRenewalPlateLocked(false);
     setFiles({});
     setAgree(false);
   }
@@ -529,6 +541,7 @@ export default function ApplicationForm() {
       next.plate = plate || next.plate;
       return next;
     });
+    setRenewalPlateLocked(true);
   }
 
   function closeRenewalModal({ resetType = false } = {}) {
@@ -577,6 +590,50 @@ export default function ApplicationForm() {
 
   // ─── Validation helpers ─────────────────────────────────────────────────────
 
+  function scrollToWithinForm(selector) {
+    requestAnimationFrame(() => {
+      const target = formRef.current?.querySelector(selector);
+      if (!target) return;
+
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (typeof target.focus === "function") {
+        target.focus({ preventScroll: true });
+      }
+    });
+  }
+
+  function scrollToField(fieldName, targetStep = step) {
+    if (targetStep !== step) {
+      setStep(targetStep);
+      window.setTimeout(
+        () => scrollToWithinForm(`[name="${fieldName}"], #${fieldName}`),
+        80,
+      );
+      return;
+    }
+
+    scrollToWithinForm(`[name="${fieldName}"], #${fieldName}`);
+  }
+
+  function scrollToDocumentRequirement(docId) {
+    setStep(3);
+    window.setTimeout(() => scrollToWithinForm(`#doc_${docId}`), 80);
+  }
+
+  function scrollToAgreement() {
+    setStep(3);
+    window.setTimeout(() => scrollToWithinForm("#document-agreement"), 80);
+  }
+
+  function scrollToUploadProgress() {
+    requestAnimationFrame(() => {
+      optimisticRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }
+
   /**
    * Validates required fields for a given step.
    * Returns true if valid, shows a toast and returns false if not.
@@ -590,6 +647,7 @@ export default function ApplicationForm() {
         `Please fill in: ${missing.map((k) => FIELD_LABELS[k] || k).join(", ")}.`,
         true,
       );
+      scrollToField(missing[0], targetStep);
       return false;
     }
     return true;
@@ -608,10 +666,12 @@ export default function ApplicationForm() {
         `Please upload all required documents: ${missingDocs.map((d) => d.name).join(", ")}.`,
         true,
       );
+      scrollToDocumentRequirement(missingDocs[0].id);
       return false;
     }
     if (!agree) {
       showToast("Please agree to the certification.", true);
+      scrollToAgreement();
       return false;
     }
     return true;
@@ -760,6 +820,7 @@ export default function ApplicationForm() {
 
     setSubmitting(true);
     setUploadProgress({});
+    scrollToUploadProgress();
 
     try {
       // ── Phase 0: Use the original ref for amendments, generate one for new applications.
@@ -820,6 +881,7 @@ export default function ApplicationForm() {
               "…",
           ),
         );
+        scrollToUploadProgress();
 
         const result = await uploadFileInChunks({
           file,
@@ -945,7 +1007,11 @@ export default function ApplicationForm() {
         />
 
         {optimisticMessage && (
-          <div className={styles.optimistic} role="status" aria-live="polite">
+          <div
+            className={styles.optimistic}
+            role="status"
+            aria-live="polite"
+            ref={optimisticRef}>
             <span className={styles.optimisticSpinner} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <strong>Submitting your application</strong>
@@ -984,6 +1050,7 @@ export default function ApplicationForm() {
             establishmentNames={establishmentNames}
             loadingEstablishmentTypes={loadingEstablishmentTypes}
             loadingEstablishmentNames={loadingEstablishmentNames}
+            lockPlate={renewalPlateLocked}
           />
         )}
         {step === 3 && (

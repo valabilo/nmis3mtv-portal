@@ -89,9 +89,15 @@ export default function ApplicationStatusPanel() {
   const [paymentSaving, setPaymentSaving] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState('')
   const [paymentError, setPaymentError] = useState('')
+  const [paymentSuccessModalOpen, setPaymentSuccessModalOpen] = useState(false)
   const [proofFile, setProofFile] = useState(null)
   const [proofProgress, setProofProgress] = useState(0)
+  const paymentReferenceInputRef = useRef(null)
+  const proofFieldRef = useRef(null)
   const proofInputRef = useRef(null)
+  const isPaymentSubmitted = application
+    ? PAYMENT_LOCKED_STATUSES.includes(application.status)
+    : false
 
   async function checkStatus(value = ref) {
     const query = value.trim()
@@ -122,6 +128,7 @@ export default function ApplicationStatusPanel() {
       setProofProgress(0)
       setPaymentMessage('')
       setPaymentError('')
+      setPaymentSuccessModalOpen(false)
     } catch (err) {
       setError(err.message || 'Unable to check application status.')
     } finally {
@@ -136,12 +143,15 @@ export default function ApplicationStatusPanel() {
     const value = paymentReference.trim()
 
     if (!query || !value) {
-      setPaymentError('Enter your payment reference number.')
+      setPaymentError('Enter your reference number.')
+      paymentReferenceInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      paymentReferenceInputRef.current?.focus({ preventScroll: true })
       return
     }
 
     if (!proofFile) {
       setPaymentError('Upload your proof of payment.')
+      proofFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
 
@@ -180,6 +190,7 @@ export default function ApplicationStatusPanel() {
 
       setPaymentReference(json.paymentReference || value)
       setPaymentMessage(json.message || 'Proof of payment submitted for NMIS verification.')
+      setPaymentSuccessModalOpen(true)
       setProofFile(null)
       if (proofInputRef.current) proofInputRef.current.value = ''
       setApplication(current =>
@@ -329,89 +340,105 @@ export default function ApplicationStatusPanel() {
               </div>
             ) : null}
 
-            {PAYMENT_UPLOAD_STATUSES.includes(application.status) || PAYMENT_LOCKED_STATUSES.includes(application.status) ? (
-              <form className={styles.paymentCard} onSubmit={submitPaymentReference}>
-                <div>
-                  <strong>Proof of Payment</strong>
-                  <p>
-                    Already paid? Enter the Landbank/payment reference number and upload your payment confirmation.
-                  </p>
-                </div>
-                <div className={styles.paymentForm}>
-                  <label className={styles.paymentField}>
-                    <span>Payment Reference Number</span>
-                    <input
-                      type="text"
-                      value={paymentReference}
-                      onChange={event => setPaymentReference(event.target.value.toUpperCase())}
-                      placeholder="e.g. LBP-123456789"
-                      disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
-                      aria-label="Payment reference number"
-                    />
-                  </label>
-                  <div className={styles.paymentField}>
-                    <span>Proof of Payment</span>
-                    {!proofFile ? (
-                      <div
-                        className={styles.dropZone}
-                        onClick={() => proofInputRef.current?.click()}
-                        onDragOver={event => {
-                          event.preventDefault()
-                          event.currentTarget.classList.add(styles.dragOver)
-                        }}
-                        onDragLeave={event => event.currentTarget.classList.remove(styles.dragOver)}
-                        onDrop={event => {
-                          event.currentTarget.classList.remove(styles.dragOver)
-                          handleProofDrop(event)
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label="Upload proof of payment"
-                        onKeyDown={event => event.key === 'Enter' && proofInputRef.current?.click()}
-                      >
-                        <span className={styles.dropIcon}>Upload</span>
-                        <p>Click to upload or drag and drop</p>
-                        <p className={styles.dropHint}>PDF, JPG, PNG - max 5 MB</p>
-                      </div>
-                    ) : (
-                      <div className={styles.fileItem}>
-                        <span>{proofFile.name} ({formatBytes(proofFile.size)})</span>
-                        <button
-                          type="button"
-                          onClick={removeProofFile}
-                          className={styles.removeBtn}
-                          disabled={paymentSaving}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
+            {PAYMENT_UPLOAD_STATUSES.includes(application.status) || isPaymentSubmitted ? (
+              isPaymentSubmitted ? (
+                <div className={styles.paymentCard}>
+                  <div>
+                    <strong>Proof of Payment</strong>
+                    <p>{paymentMessage || 'Proof of payment submitted for NMIS verification.'}</p>
                   </div>
-                  <input
-                    ref={proofInputRef}
-                    type="file"
-                    accept={ACCEPTED_FILE_TYPES}
-                    onChange={chooseProofFile}
-                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
-                    aria-label="Proof of payment"
-                    className={styles.hiddenFile}
-                  />
-                  <button
-                    className={styles.downloadButton}
-                    type="submit"
-                    disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}>
-                    {paymentSaving ? 'Submitting...' : PAYMENT_LOCKED_STATUSES.includes(application.status) ? 'Submitted' : 'Submit Proof'}
-                  </button>
+                  <div className={styles.paymentSummary}>
+                    <Detail label="Reference Number" value={application.paymentReference || paymentReference} />
+                    <Detail label="Proof of Payment" value={application.proofOfPaymentFileName} />
+                  </div>
                 </div>
-                {application.proofOfPaymentFileName && !proofFile ? (
-                  <p className={styles.paymentMeta}>Submitted file: {application.proofOfPaymentFileName}</p>
-                ) : null}
-                {paymentSaving && proofProgress > 0 ? (
-                  <p className={styles.paymentMeta}>Uploading proof: {proofProgress}%</p>
-                ) : null}
-                {paymentMessage ? <p className={styles.paymentSuccess}>{paymentMessage}</p> : null}
-                {paymentError ? <p className={styles.paymentError}>{paymentError}</p> : null}
-              </form>
+              ) : (
+                <form className={styles.paymentCard} onSubmit={submitPaymentReference} noValidate>
+                  <div>
+                    <strong>Proof of Payment</strong>
+                    <p>
+                      Already paid? Enter the Landbank/payment reference number and upload your payment confirmation.
+                    </p>
+                  </div>
+                  <div className={styles.paymentForm}>
+                    <label className={styles.paymentField}>
+                      <span>Reference Number <span className="req">*</span></span>
+                      <input
+                        ref={paymentReferenceInputRef}
+                        type="text"
+                        value={paymentReference}
+                        onChange={event => setPaymentReference(event.target.value.toUpperCase())}
+                        placeholder="e.g. LBP-123456789"
+                        disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
+                        required
+                        aria-label="Reference number"
+                      />
+                    </label>
+                    <div className={styles.paymentField} ref={proofFieldRef}>
+                      <span>Proof of Payment <span className="req">*</span></span>
+                      {!proofFile ? (
+                        <div
+                          className={styles.dropZone}
+                          onClick={() => proofInputRef.current?.click()}
+                          onDragOver={event => {
+                            event.preventDefault()
+                            event.currentTarget.classList.add(styles.dragOver)
+                          }}
+                          onDragLeave={event => event.currentTarget.classList.remove(styles.dragOver)}
+                          onDrop={event => {
+                            event.currentTarget.classList.remove(styles.dragOver)
+                            handleProofDrop(event)
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Upload proof of payment"
+                          onKeyDown={event => event.key === 'Enter' && proofInputRef.current?.click()}
+                        >
+                          <span className={styles.dropIcon}>Upload</span>
+                          <p>Click to upload or drag and drop</p>
+                          <p className={styles.dropHint}>PDF, JPG, PNG - max 5 MB</p>
+                        </div>
+                      ) : (
+                        <div className={styles.fileItem}>
+                          <span>{proofFile.name} ({formatBytes(proofFile.size)})</span>
+                          <button
+                            type="button"
+                            onClick={removeProofFile}
+                            className={styles.removeBtn}
+                            disabled={paymentSaving}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={proofInputRef}
+                      type="file"
+                      accept={ACCEPTED_FILE_TYPES}
+                      onChange={chooseProofFile}
+                      disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}
+                      aria-label="Proof of payment"
+                      className={styles.hiddenFile}
+                    />
+                    <div className={styles.paymentActions}>
+                      <button
+                        className={styles.downloadButton}
+                        type="submit"
+                        disabled={paymentSaving || PAYMENT_LOCKED_STATUSES.includes(application.status)}>
+                        {paymentSaving ? 'Submitting...' : PAYMENT_LOCKED_STATUSES.includes(application.status) ? 'Submitted' : 'Submit Proof'}
+                      </button>
+                    </div>
+                  </div>
+                  {application.proofOfPaymentFileName && !proofFile ? (
+                    <p className={styles.paymentMeta}>Submitted file: {application.proofOfPaymentFileName}</p>
+                  ) : null}
+                  {paymentSaving && proofProgress > 0 ? (
+                    <p className={styles.paymentMeta}>Uploading proof: {proofProgress}%</p>
+                  ) : null}
+                  {paymentError ? <p className={styles.paymentError}>{paymentError}</p> : null}
+                </form>
+              )
             ) : null}
           </div>
         </div>
@@ -423,6 +450,31 @@ export default function ApplicationStatusPanel() {
           Back to MTV Application
         </Link>
       </div>
+
+      {paymentSuccessModalOpen ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setPaymentSuccessModalOpen(false)
+          }}>
+          <div
+            className={styles.successModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-success-title">
+            <span>Proof of Payment</span>
+            <h2 id="payment-success-title">Submission received</h2>
+            <p>{paymentMessage || 'Your proof of payment was submitted for NMIS verification.'}</p>
+            <button
+              type="button"
+              className={styles.downloadButton}
+              onClick={() => setPaymentSuccessModalOpen(false)}>
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

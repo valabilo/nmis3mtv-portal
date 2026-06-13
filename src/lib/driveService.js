@@ -88,14 +88,38 @@ export async function listFolderFiles(folderId) {
     pageSize: 100,
   });
 
-  return (res.data.files || []).map((file) => ({
-    id: file.id,
-    name: file.name,
-    mimeType: file.mimeType,
-    webViewLink: file.webViewLink || "",
-    webContentLink: file.webContentLink || "",
-    modifiedTime: file.modifiedTime || "",
-  }));
+  return (res.data.files || [])
+    .map((file) => ({
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      webViewLink: file.webViewLink || "",
+      webContentLink: file.webContentLink || "",
+      modifiedTime: file.modifiedTime || "",
+    }))
+    .sort((a, b) => {
+      const aProof = a.name.toLowerCase().includes("proof_of_payment");
+      const bProof = b.name.toLowerCase().includes("proof_of_payment");
+      if (aProof !== bProof) return aProof ? -1 : 1;
+      return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+    });
+}
+
+export async function trashDriveFiles(fileIds = []) {
+  const ids = [...new Set(fileIds.filter(Boolean))];
+  if (!ids.length) return [];
+
+  const drive = getDriveClient();
+  await Promise.all(
+    ids.map((fileId) =>
+      drive.files.update({
+        fileId,
+        requestBody: { trashed: true },
+      }),
+    ),
+  );
+
+  return ids;
 }
 
 export async function deleteReplacedApplicationFiles({
@@ -126,6 +150,23 @@ export async function deleteReplacedApplicationFiles({
   );
 
   return targets;
+}
+
+export async function deleteReplacedProofPaymentFiles({
+  folderId,
+  refNumber,
+  keepFileIds = [],
+}) {
+  if (!folderId || !refNumber) return [];
+
+  const keepSet = new Set(keepFileIds.filter(Boolean));
+  const prefix = `${refNumber}_proof_of_payment_`;
+  const targets = (await listFolderFiles(folderId)).filter(
+    (file) => !keepSet.has(file.id) && file.name.startsWith(prefix),
+  );
+  const trashedByPrefix = await trashDriveFiles(targets.map((file) => file.id));
+
+  return targets.filter((file) => trashedByPrefix.includes(file.id));
 }
 
 /**
