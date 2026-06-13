@@ -83,7 +83,8 @@
   box-shadow: 0 8px 24px rgba(0,0,0,.14);
   display: flex;
   height: 42px;
-  min-width: min(520px, 50vw);
+  flex: 0 1 min(680px, 58vw);
+  min-width: min(560px, 50vw);
   overflow: hidden;
 }
 
@@ -102,8 +103,11 @@
 .searchForm select {
   border-right: 1px solid var(--gray-200);
   cursor: pointer;
+  field-sizing: content;
   font-weight: 800;
-  width: 160px;
+  min-width: 76px;
+  padding-right: 30px;
+  width: auto;
 }
 
 .searchForm input {

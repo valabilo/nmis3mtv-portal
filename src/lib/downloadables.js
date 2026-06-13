@@ -26,13 +26,18 @@ function toDownloadUrl(row) {
   return url
 }
 
+function displayTitle(value) {
+  const title = String(value || '').trim()
+  return title === 'Annex B MTV Application' ? 'Annex B MTV Inspection' : title
+}
+
 export async function getDownloadables() {
   try {
     const rows = await readSheet('Downloadables')
     const items = rows
       .filter((row) => String(row.active || 'yes').trim().toLowerCase() !== 'no')
       .map((row, index) => ({
-        title: row.title || row.name || '',
+        title: displayTitle(row.title || row.name),
         description: row.description || row.details || '',
         href: toDownloadUrl(row),
         type: (row.type || row.file_type || 'PDF').toUpperCase(),

@@ -25,7 +25,7 @@ export default function VideoCard({ watched, onMarkWatched }) {
     const initPlayer = () => {
       if (window.YT && window.YT.Player && !playerRef.current) {
         playerRef.current = new window.YT.Player("youtube-player", {
-          videoId: "aItnGENOlHM",
+          videoId: "ef3Xs527QVI",
           playerVars: {
             autoplay: 0,
             controls: 1,
@@ -85,7 +85,7 @@ export default function VideoCard({ watched, onMarkWatched }) {
             <strong>Required:</strong> Yes
           </span>
           <span>
-            <strong>Updated:</strong> 2025
+            <strong>Updated:</strong> 2026
           </span>
           {watched && <span className="tag tag-active">✅ Watched</span>}
         </div>

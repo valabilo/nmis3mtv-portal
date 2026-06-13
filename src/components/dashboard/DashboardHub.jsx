@@ -35,6 +35,8 @@ const STATUSES = [
   "Cancelled",
 ];
 
+const APPLICATION_STATUSES = ["Application Received", ...STATUSES];
+
 const ACCREDITED_STATUSES = [
   "Active",
   "Expired",
@@ -556,7 +558,8 @@ function Dropdown({ id, label, value, options, onChange, disabled = false }) {
   const [activeValue, setActiveValue] = useState(value);
   const sortedOptions = useMemo(() => sortDropdownOptions(options), [options]);
   const selected =
-    sortedOptions.find((option) => option.value === value) || sortedOptions[0];
+    sortedOptions.find((option) => option.value === value) ||
+    (value ? { value, label: value } : sortedOptions[0]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -1851,7 +1854,7 @@ export default function DashboardHub() {
                           id="status"
                           value={draftStatus || selectedApplication.status}
                           disabled={saving || isViewOnlyLocked}
-                          options={STATUSES.map((status) => ({
+                          options={APPLICATION_STATUSES.map((status) => ({
                             value: status,
                             label: status,
                           }))}
