@@ -67,7 +67,11 @@ const ACCREDITED_STATUSES = [
 const TABS = [
   { id: "overview", label: "Overview", icon: Squares2X2Icon },
   { id: "analytics", label: "Analytics", icon: ChartBarIcon },
-  { id: "applications", label: "Applications", icon: ClipboardDocumentListIcon },
+  {
+    id: "applications",
+    label: "Applications",
+    icon: ClipboardDocumentListIcon,
+  },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "details", label: "Details", icon: DocumentTextIcon },
   { id: "documents", label: "Documents", icon: FolderOpenIcon },
@@ -224,7 +228,9 @@ function addMonths(date, months) {
 function isExpiringSoon(value, status) {
   if (
     !value ||
-    ["Cancelled", "Expired", "Inactive", "Revoked", "Suspended"].includes(status)
+    ["Cancelled", "Expired", "Inactive", "Revoked", "Suspended"].includes(
+      status,
+    )
   ) {
     return false;
   }
@@ -321,7 +327,10 @@ function visibleDocumentsForApplication(application) {
     (document) => documentReviewStatus(document) === "Rejected",
   );
 
-  if (application?.status === "Rejected Application" && rejectedDocuments.length) {
+  if (
+    application?.status === "Rejected Application" &&
+    rejectedDocuments.length
+  ) {
     return rejectedDocuments;
   }
 
@@ -424,21 +433,45 @@ function isAmendmentSnapshot(snapshot) {
 }
 
 function registrationNumberForApplication(application, accreditedRecords = []) {
-  const plate = String(application.plate || "").trim().toUpperCase();
-  const reference = String(application.reference || "").trim().toUpperCase();
+  const plate = String(application.plate || "")
+    .trim()
+    .toUpperCase();
+  const reference = String(application.reference || "")
+    .trim()
+    .toUpperCase();
   const record = accreditedRecords.find((item) => {
-    const itemPlate = String(item.plate || "").trim().toUpperCase();
-    const itemReference = String(item.reference || "").trim().toUpperCase();
+    const itemPlate = String(item.plate || "")
+      .trim()
+      .toUpperCase();
+    const itemReference = String(item.reference || "")
+      .trim()
+      .toUpperCase();
 
-    return (plate && itemPlate === plate) || (reference && itemReference === reference);
+    return (
+      (plate && itemPlate === plate) ||
+      (reference && itemReference === reference)
+    );
   });
 
-  return record?.reference || application.registrationNo || application.reference || "";
+  return (
+    record?.reference ||
+    application.registrationNo ||
+    application.reference ||
+    ""
+  );
 }
 
-function buildApplicationNotification({ application, accreditedRecords, before, after }) {
+function buildApplicationNotification({
+  application,
+  accreditedRecords,
+  before,
+  after,
+}) {
   const reference = application.reference;
-  const registrationNo = registrationNumberForApplication(application, accreditedRecords);
+  const registrationNo = registrationNumberForApplication(
+    application,
+    accreditedRecords,
+  );
   const owner = application.registeredOwner || "Applicant";
   const base = {
     reference,
@@ -449,7 +482,9 @@ function buildApplicationNotification({ application, accreditedRecords, before, 
     const isAmendment = isAmendmentSnapshot(after);
     return {
       ...base,
-      title: isAmendment ? "Application amendment received" : "New application received",
+      title: isAmendment
+        ? "Application amendment received"
+        : "New application received",
       message: isAmendment
         ? `Registration No.: ${registrationNo}. Resubmitted with corrected details or documents.`
         : `Registration No.: ${registrationNo}. ${owner}`,
@@ -505,7 +540,9 @@ function exportCsv({ filenameBase, columns, rows }) {
 
   rows.forEach((row) => {
     const line = `${columns
-      .map(([, key]) => csvCell(typeof key === "function" ? key(row) : row[key]))
+      .map(([, key]) =>
+        csvCell(typeof key === "function" ? key(row) : row[key]),
+      )
       .join(",")}\n`;
     const lineSize = encoder.encode(line).length;
 
@@ -584,7 +621,11 @@ function ApplicationTrail({ history = [], submittedAt }) {
       {items.map((item, index) => (
         <article
           key={`${item.status}-${item.timestamp || index}`}
-          className={index === items.length - 1 ? styles.trailItemActive : styles.trailItem}>
+          className={
+            index === items.length - 1
+              ? styles.trailItemActive
+              : styles.trailItem
+          }>
           <div className={styles.trailMarker}>
             <span>{index + 1}</span>
           </div>
@@ -628,7 +669,11 @@ function BarChart({ data, valueKey = "count", labelKey = "label", helperKey }) {
           <div className={styles.barRow} key={item[labelKey]}>
             <span>{item[labelKey]}</span>
             <div className={styles.barTrack}>
-              <span style={{ width: `${Math.max((value / max) * 100, value ? 4 : 0)}%` }} />
+              <span
+                style={{
+                  width: `${Math.max((value / max) * 100, value ? 4 : 0)}%`,
+                }}
+              />
             </div>
             <strong>{value}</strong>
             {helperKey ? <small>{item[helperKey]}</small> : null}
@@ -648,7 +693,11 @@ function MonthlyTrendChart({ data }) {
         <div className={styles.monthColumn} key={item.month}>
           <strong>{item.count}</strong>
           <div className={styles.monthTrack}>
-            <span style={{ height: `${Math.max((item.count / max) * 100, item.count ? 8 : 0)}%` }} />
+            <span
+              style={{
+                height: `${Math.max((item.count / max) * 100, item.count ? 8 : 0)}%`,
+              }}
+            />
           </div>
           <small>{shortMonthLabel(item.month)}</small>
         </div>
@@ -708,7 +757,12 @@ function Dropdown({ id, label, value, options, onChange, disabled = false }) {
   }
 
   function handleTypeAhead(event) {
-    if (event.key.length !== 1 || event.altKey || event.ctrlKey || event.metaKey) {
+    if (
+      event.key.length !== 1 ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey
+    ) {
       return false;
     }
 
@@ -721,10 +775,14 @@ function Dropdown({ id, label, value, options, onChange, disabled = false }) {
 
     const match =
       sortedOptions.find((option) =>
-        String(option.label || "").toLowerCase().startsWith(searchRef.current),
+        String(option.label || "")
+          .toLowerCase()
+          .startsWith(searchRef.current),
       ) ||
       sortedOptions.find((option) =>
-        String(option.label || "").toLowerCase().startsWith(typed),
+        String(option.label || "")
+          .toLowerCase()
+          .startsWith(typed),
       );
 
     if (match) {
@@ -756,10 +814,14 @@ function Dropdown({ id, label, value, options, onChange, disabled = false }) {
       return;
     }
 
-    const currentIndex = sortedOptions.findIndex((item) => item.value === option.value);
+    const currentIndex = sortedOptions.findIndex(
+      (item) => item.value === option.value,
+    );
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      focusOption(sortedOptions[Math.min(currentIndex + 1, sortedOptions.length - 1)]);
+      focusOption(
+        sortedOptions[Math.min(currentIndex + 1, sortedOptions.length - 1)],
+      );
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       focusOption(sortedOptions[Math.max(currentIndex - 1, 0)]);
@@ -790,24 +852,32 @@ function Dropdown({ id, label, value, options, onChange, disabled = false }) {
           <ChevronDownIcon aria-hidden="true" />
         </button>
         {open ? (
-          <div id={menuId} className={styles.dropdownMenu} role="listbox" aria-label={label}>
+          <div
+            id={menuId}
+            className={styles.dropdownMenu}
+            role="listbox"
+            aria-label={label}>
             {sortedOptions.map((option) => (
-            <button
-              key={option.value}
-              ref={(node) => {
-                if (node) optionRefs.current.set(option.value, node);
-                else optionRefs.current.delete(option.value);
-              }}
-              type="button"
-              role="option"
-              aria-selected={option.value === value}
-              tabIndex={option.value === activeValue ? 0 : -1}
-              className={option.value === value ? styles.dropdownOptionActive : styles.dropdownOption}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => chooseOption(option.value)}
-              onKeyDown={(event) => handleOptionKeyDown(event, option)}>
-              {option.label}
-            </button>
+              <button
+                key={option.value}
+                ref={(node) => {
+                  if (node) optionRefs.current.set(option.value, node);
+                  else optionRefs.current.delete(option.value);
+                }}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                tabIndex={option.value === activeValue ? 0 : -1}
+                className={
+                  option.value === value
+                    ? styles.dropdownOptionActive
+                    : styles.dropdownOption
+                }
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseOption(option.value)}
+                onKeyDown={(event) => handleOptionKeyDown(event, option)}>
+                {option.label}
+              </button>
             ))}
           </div>
         ) : null}
@@ -835,7 +905,9 @@ export default function DashboardHub() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("All");
-  const [analyticsYear, setAnalyticsYear] = useState(String(new Date().getFullYear()));
+  const [analyticsYear, setAnalyticsYear] = useState(
+    String(new Date().getFullYear()),
+  );
   const [accreditedAdvancedOpen, setAccreditedAdvancedOpen] = useState(false);
   const [accreditedAdvancedFilters, setAccreditedAdvancedFilters] = useState(
     EMPTY_ACCREDITED_ADVANCED_FILTERS,
@@ -906,7 +978,9 @@ export default function DashboardHub() {
 
   useEffect(
     () => () => {
-      notificationTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      notificationTimersRef.current.forEach((timer) =>
+        window.clearTimeout(timer),
+      );
       notificationTimersRef.current.clear();
     },
     [],
@@ -932,7 +1006,9 @@ export default function DashboardHub() {
     if (!refreshed.ok || !refreshedJson.success) return;
 
     setApplications(refreshedJson.data || []);
-    knownApplicationsRef.current = buildApplicationSnapshotMap(refreshedJson.data || []);
+    knownApplicationsRef.current = buildApplicationSnapshotMap(
+      refreshedJson.data || [],
+    );
     knownApplicationsReadyRef.current = true;
     setAccreditedRecords(refreshedJson.accredited || []);
     setStats((current) => ({ ...current, ...(refreshedJson.stats || {}) }));
@@ -1064,7 +1140,9 @@ export default function DashboardHub() {
 
   const selectedApplication = useMemo(
     () =>
-      applications.find((application) => application.reference === selectedRef) ||
+      applications.find(
+        (application) => application.reference === selectedRef,
+      ) ||
       applications[0] ||
       null,
     [applications, selectedRef],
@@ -1176,7 +1254,8 @@ export default function DashboardHub() {
           APPROVED_STATUSES.includes(application.status)) ||
         (statusFilter === "FlaggedGroup" &&
           FLAGGED_STATUSES.includes(application.status));
-      const matchesYear = yearFilter === "All" || submittedDate.year === yearFilter;
+      const matchesYear =
+        yearFilter === "All" || submittedDate.year === yearFilter;
       const matchesMonth =
         monthFilter === "All" || submittedDate.month === monthFilter;
       const searchText = [
@@ -1208,8 +1287,12 @@ export default function DashboardHub() {
 
   const analyticsYears = useMemo(() => {
     const years = [
-      ...applications.map((application) => yearFromValue(application.timestamp)),
-      ...accreditedRecords.map((record) => yearFromValue(record.approvedAt || record.dateIssued)),
+      ...applications.map((application) =>
+        yearFromValue(application.timestamp),
+      ),
+      ...accreditedRecords.map((record) =>
+        yearFromValue(record.approvedAt || record.dateIssued),
+      ),
     ].filter(Boolean);
 
     return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
@@ -1230,25 +1313,30 @@ export default function DashboardHub() {
     const selectedYear = analyticsYear === "All" ? "" : analyticsYear;
     const yearApplications = selectedYear
       ? applications.filter(
-          (application) => yearFromValue(application.timestamp) === selectedYear,
+          (application) =>
+            yearFromValue(application.timestamp) === selectedYear,
         )
       : applications;
     const yearAccredited = selectedYear
       ? accreditedRecords.filter(
-          (record) => yearFromValue(record.approvedAt || record.dateIssued) === selectedYear,
+          (record) =>
+            yearFromValue(record.approvedAt || record.dateIssued) ===
+            selectedYear,
         )
       : accreditedRecords;
     const monthlyAccredited = MONTHS.map(([month, label]) => ({
       month,
       label,
       count: yearAccredited.filter(
-        (record) => monthFromValue(record.approvedAt || record.dateIssued) === month,
+        (record) =>
+          monthFromValue(record.approvedAt || record.dateIssued) === month,
       ).length,
     }));
     const yearlyMap = new Map();
 
     accreditedRecords.forEach((record) => {
-      const year = yearFromValue(record.approvedAt || record.dateIssued) || "No date";
+      const year =
+        yearFromValue(record.approvedAt || record.dateIssued) || "No date";
       yearlyMap.set(year, (yearlyMap.get(year) || 0) + 1);
     });
 
@@ -1273,14 +1361,20 @@ export default function DashboardHub() {
       share: `${percentage(count, yearAccredited.length)}%`,
     })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
-    const statusBreakdown = ["Application Received", ...STATUSES].map((status) => ({
-      label: status,
-      count: yearApplications.filter((application) => application.status === status).length,
-      share: `${percentage(
-        yearApplications.filter((application) => application.status === status).length,
-        yearApplications.length,
-      )}%`,
-    }));
+    const statusBreakdown = ["Application Received", ...STATUSES].map(
+      (status) => ({
+        label: status,
+        count: yearApplications.filter(
+          (application) => application.status === status,
+        ).length,
+        share: `${percentage(
+          yearApplications.filter(
+            (application) => application.status === status,
+          ).length,
+          yearApplications.length,
+        )}%`,
+      }),
+    );
 
     return {
       monthlyAccredited,
@@ -1296,9 +1390,18 @@ export default function DashboardHub() {
     return accreditedRecords.filter((record) => {
       const status = record.status || "Active";
       const checks = [
-        [accreditedAdvancedFilters.reference, record.reference || record.registration_no],
-        [accreditedAdvancedFilters.plate, record.plate || record.plate_no || record.plate_number],
-        [accreditedAdvancedFilters.establishment, record.business || record.business_name],
+        [
+          accreditedAdvancedFilters.reference,
+          record.reference || record.registration_no,
+        ],
+        [
+          accreditedAdvancedFilters.plate,
+          record.plate || record.plate_no || record.plate_number,
+        ],
+        [
+          accreditedAdvancedFilters.establishment,
+          record.business || record.business_name,
+        ],
         [accreditedAdvancedFilters.owner, record.owner],
       ];
       const textMatches = checks.every(([filterValue, recordValue]) => {
@@ -1310,12 +1413,14 @@ export default function DashboardHub() {
         status === accreditedAdvancedFilters.status;
       const matchesEstablishmentType =
         accreditedAdvancedFilters.establishmentType === "All" ||
-        normalise(record.type) === normalise(accreditedAdvancedFilters.establishmentType);
+        normalise(record.type) ===
+          normalise(accreditedAdvancedFilters.establishmentType);
       const matchesIssuedYear =
         accreditedAdvancedFilters.issuedDateRange ||
         !accreditedAdvancedFilters.issuedYear ||
-        yearFromValue(record.approvedAt || record.dateIssued || record.date_issued) ===
-          accreditedAdvancedFilters.issuedYear.trim();
+        yearFromValue(
+          record.approvedAt || record.dateIssued || record.date_issued,
+        ) === accreditedAdvancedFilters.issuedYear.trim();
       const matchesIssuedDateRange =
         !accreditedAdvancedFilters.issuedDateRange ||
         dateInRange(
@@ -1353,12 +1458,17 @@ export default function DashboardHub() {
   }, [accreditedRecords, accreditedAdvancedFilters]);
 
   const establishmentTypes = useMemo(() => {
-    return [...new Set(accreditedRecords.map((record) => record.type).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b));
+    return [
+      ...new Set(
+        accreditedRecords.map((record) => record.type).filter(Boolean),
+      ),
+    ].sort((a, b) => a.localeCompare(b));
   }, [accreditedRecords]);
 
   const metrics = useMemo(() => {
-    const pending = applications.filter((item) => item.status === "Application Received").length;
+    const pending = applications.filter(
+      (item) => item.status === "Application Received",
+    ).length;
     const activeReview = applications.filter((item) =>
       REVIEW_STATUSES.includes(item.status),
     ).length;
@@ -1405,10 +1515,13 @@ export default function DashboardHub() {
 
   function handleStatusChangeRequest(nextStatus) {
     if (isViewOnlyLocked) {
-      setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
+      setError(
+        `${recordLock.owner} is currently editing this record. View-only mode is enabled.`,
+      );
       return;
     }
-    if (!selectedApplication || nextStatus === selectedApplication.status) return;
+    if (!selectedApplication || nextStatus === selectedApplication.status)
+      return;
     if (nextStatus === "Completed") {
       const blockReason = completedStatusBlockReason(selectedApplication);
       if (blockReason) {
@@ -1422,7 +1535,9 @@ export default function DashboardHub() {
 
   async function submitStatusUpdate(nextStatus) {
     if (isViewOnlyLocked) {
-      setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
+      setError(
+        `${recordLock.owner} is currently editing this record. View-only mode is enabled.`,
+      );
       return;
     }
     if (!selectedApplication || !nextStatus) return;
@@ -1456,8 +1571,12 @@ export default function DashboardHub() {
       await refreshDashboardData();
 
       const previousStatus =
-        json.application?.previousStatus || selectedApplication.status || "Application Received";
-      setNotice(`Successfully changed the status from ${previousStatus} to ${nextStatus}.`);
+        json.application?.previousStatus ||
+        selectedApplication.status ||
+        "Application Received";
+      setNotice(
+        `Successfully changed the status from ${previousStatus} to ${nextStatus}.`,
+      );
       setDraftStatus(nextStatus);
     } catch (err) {
       setError(err.message || "Failed to update status.");
@@ -1470,7 +1589,9 @@ export default function DashboardHub() {
 
   async function updateDocumentReview(document, reviewStatus) {
     if (isViewOnlyLocked) {
-      setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
+      setError(
+        `${recordLock.owner} is currently editing this record. View-only mode is enabled.`,
+      );
       return;
     }
     if (!selectedApplication || !document?.id) return;
@@ -1532,7 +1653,9 @@ export default function DashboardHub() {
 
   async function confirmStatusChange() {
     if (isViewOnlyLocked) {
-      setError(`${recordLock.owner} is currently editing this record. View-only mode is enabled.`);
+      setError(
+        `${recordLock.owner} is currently editing this record. View-only mode is enabled.`,
+      );
       setPendingStatus("");
       setPendingRemarks("");
       return;
@@ -1689,14 +1812,16 @@ export default function DashboardHub() {
         <div className={styles.brand}>
           <span>MTV</span>
           <div>
-            <strong>Admin Console</strong>
+            <strong>Admin</strong>
             <small>RTOC III</small>
           </div>
           <button
             type="button"
             className={styles.collapseButton}
             onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={
+              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
             aria-expanded={!sidebarCollapsed}>
             <SidebarToggleIcon aria-hidden="true" />
           </button>
@@ -1742,7 +1867,9 @@ export default function DashboardHub() {
                 <BellIcon aria-hidden="true" />
                 {unreadNotificationCount ? (
                   <span className={styles.notificationBadge}>
-                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                    {unreadNotificationCount > 99
+                      ? "99+"
+                      : unreadNotificationCount}
                   </span>
                 ) : null}
               </button>
@@ -1752,7 +1879,9 @@ export default function DashboardHub() {
                   <div className={styles.notificationPanelHeader}>
                     <strong>Notifications</strong>
                     {dashboardNotifications.length ? (
-                      <button type="button" onClick={markAllDashboardNotificationsRead}>
+                      <button
+                        type="button"
+                        onClick={markAllDashboardNotificationsRead}>
                         Mark all read
                       </button>
                     ) : null}
@@ -1768,7 +1897,9 @@ export default function DashboardHub() {
                               ? styles.notificationItem
                               : styles.notificationItemUnread
                           }
-                          onClick={() => openDashboardNotification(notification)}>
+                          onClick={() =>
+                            openDashboardNotification(notification)
+                          }>
                           <span>
                             <strong>{notification.title}</strong>
                             <small>{notificationTimestamp(notification)}</small>
@@ -1778,7 +1909,9 @@ export default function DashboardHub() {
                       ))}
                     </div>
                   ) : (
-                    <p className={styles.notificationEmpty}>No new notifications.</p>
+                    <p className={styles.notificationEmpty}>
+                      No new notifications.
+                    </p>
                   )}
                 </div>
               ) : null}
@@ -1793,8 +1926,8 @@ export default function DashboardHub() {
         {notice ? <div className={styles.noticeBanner}>{notice}</div> : null}
         {recordLock && !recordLock.isMine ? (
           <div className={styles.warningBanner}>
-            {recordLock.owner} is currently editing {recordLock.reference}. Please
-            coordinate before updating this record.
+            {recordLock.owner} is currently editing {recordLock.reference}.
+            Please coordinate before updating this record.
           </div>
         ) : null}
 
@@ -1838,14 +1971,20 @@ export default function DashboardHub() {
                 <p>Total active records in the Accredited sheet.</p>
               </article>
               <article className={styles.statPanel}>
-                <span className={styles.kicker}>Accredited in {stats.year}</span>
+                <span className={styles.kicker}>
+                  Accredited in {stats.year}
+                </span>
                 <strong>{loading ? "..." : stats.accreditedThisYear}</strong>
                 <p>Records approved or added during the current year.</p>
               </article>
               <article className={styles.statPanel}>
-                <span className={styles.kicker}>GHP Certificates in {stats.year}</span>
+                <span className={styles.kicker}>
+                  GHP Certificates in {stats.year}
+                </span>
                 <strong>{loading ? "..." : stats.ghpIssuedThisYear}</strong>
-                <p>Certificates issued from the GHP completions sheet this year.</p>
+                <p>
+                  Certificates issued from the GHP completions sheet this year.
+                </p>
               </article>
             </div>
 
@@ -1855,7 +1994,9 @@ export default function DashboardHub() {
                   <span className={styles.kicker}>Queue</span>
                   <h2>Recent Applications</h2>
                 </div>
-                <button type="button" onClick={() => setActiveTab("applications")}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("applications")}>
                   View all
                 </button>
               </div>
@@ -1918,7 +2059,10 @@ export default function DashboardHub() {
                     <h2>Accredited MTVs</h2>
                   </div>
                 </div>
-                <BarChart data={analytics.establishmentTypes.slice(0, 10)} helperKey="share" />
+                <BarChart
+                  data={analytics.establishmentTypes.slice(0, 10)}
+                  helperKey="share"
+                />
               </article>
 
               <article className={styles.panel}>
@@ -2010,11 +2154,14 @@ export default function DashboardHub() {
                       <tr
                         key={application.reference}
                         className={
-                          selectedApplication?.reference === application.reference
+                          selectedApplication?.reference ===
+                          application.reference
                             ? styles.selectedRow
                             : ""
                         }
-                        onClick={() => selectApplication(application.reference)}>
+                        onClick={() =>
+                          selectApplication(application.reference)
+                        }>
                         <td>
                           <strong>{application.reference}</strong>
                         </td>
@@ -2116,26 +2263,53 @@ export default function DashboardHub() {
                             !draftStatus ||
                             draftStatus === selectedApplication.status
                           }
-                          onClick={() => handleStatusChangeRequest(draftStatus)}>
+                          onClick={() =>
+                            handleStatusChangeRequest(draftStatus)
+                          }>
                           Update status
                         </button>
                       </div>
                       {isViewOnlyLocked ? (
                         <p className={styles.readOnlyNote}>
-                          View-only mode while {recordLock.owner} edits this record.
+                          View-only mode while {recordLock.owner} edits this
+                          record.
                         </p>
                       ) : null}
                     </div>
 
                     <div className={styles.infoGrid}>
-                      <InfoRow label="Owner" value={selectedApplication.registeredOwner} />
-                      <InfoRow label="Email" value={selectedApplication.email} />
-                      <InfoRow label="Contact" value={selectedApplication.contact} />
-                      <InfoRow label="Address" value={selectedApplication.address} />
-                      <InfoRow label="Province" value={selectedApplication.province} />
-                      <InfoRow label="GHP Certificate" value={selectedApplication.ghpCertNumber} />
-                      <InfoRow label="Application Type" value={selectedApplication.applicationType} />
-                      <InfoRow label="Submitted" value={formatDate(selectedApplication.timestamp)} />
+                      <InfoRow
+                        label="Owner"
+                        value={selectedApplication.registeredOwner}
+                      />
+                      <InfoRow
+                        label="Email"
+                        value={selectedApplication.email}
+                      />
+                      <InfoRow
+                        label="Contact"
+                        value={selectedApplication.contact}
+                      />
+                      <InfoRow
+                        label="Address"
+                        value={selectedApplication.address}
+                      />
+                      <InfoRow
+                        label="Province"
+                        value={selectedApplication.province}
+                      />
+                      <InfoRow
+                        label="GHP Certificate"
+                        value={selectedApplication.ghpCertNumber}
+                      />
+                      <InfoRow
+                        label="Application Type"
+                        value={selectedApplication.applicationType}
+                      />
+                      <InfoRow
+                        label="Submitted"
+                        value={formatDate(selectedApplication.timestamp)}
+                      />
                     </div>
                   </div>
 
@@ -2148,20 +2322,62 @@ export default function DashboardHub() {
                       <TruckIcon aria-hidden="true" />
                     </div>
                     <div className={styles.infoGrid}>
-                      <InfoRow label="Plate Number" value={selectedApplication.plate} />
-                      <InfoRow label="Vehicle Type" value={selectedApplication.vehicleType} />
-                      <InfoRow label="Make" value={selectedApplication.vehicleMake} />
-                      <InfoRow label="Model" value={selectedApplication.vehicleModel} />
-                      <InfoRow label="Year" value={selectedApplication.vehicleYear} />
-                      <InfoRow label="Capacity" value={selectedApplication.capacity} />
-                      <InfoRow label="Color" value={selectedApplication.vehicleColor} />
-                      <InfoRow label="Engine Number" value={selectedApplication.engineNumber} />
-                      <InfoRow label="Chassis Number" value={selectedApplication.chassisNumber} />
-                      <InfoRow label="CR Number" value={selectedApplication.crNumber} />
-                      <InfoRow label="OR Number" value={selectedApplication.orNumber} />
-                      <InfoRow label="Reference Number" value={selectedApplication.receiptNo} />
-                      <InfoRow label="Cooling System" value={selectedApplication.coolingSystem} />
-                      <InfoRow label="Material" value={selectedApplication.material} />
+                      <InfoRow
+                        label="Plate Number"
+                        value={selectedApplication.plate}
+                      />
+                      <InfoRow
+                        label="Vehicle Type"
+                        value={selectedApplication.vehicleType}
+                      />
+                      <InfoRow
+                        label="Make"
+                        value={selectedApplication.vehicleMake}
+                      />
+                      <InfoRow
+                        label="Model"
+                        value={selectedApplication.vehicleModel}
+                      />
+                      <InfoRow
+                        label="Year"
+                        value={selectedApplication.vehicleYear}
+                      />
+                      <InfoRow
+                        label="Capacity"
+                        value={selectedApplication.capacity}
+                      />
+                      <InfoRow
+                        label="Color"
+                        value={selectedApplication.vehicleColor}
+                      />
+                      <InfoRow
+                        label="Engine Number"
+                        value={selectedApplication.engineNumber}
+                      />
+                      <InfoRow
+                        label="Chassis Number"
+                        value={selectedApplication.chassisNumber}
+                      />
+                      <InfoRow
+                        label="CR Number"
+                        value={selectedApplication.crNumber}
+                      />
+                      <InfoRow
+                        label="OR Number"
+                        value={selectedApplication.orNumber}
+                      />
+                      <InfoRow
+                        label="Reference Number"
+                        value={selectedApplication.receiptNo}
+                      />
+                      <InfoRow
+                        label="Cooling System"
+                        value={selectedApplication.coolingSystem}
+                      />
+                      <InfoRow
+                        label="Material"
+                        value={selectedApplication.material}
+                      />
                     </div>
                   </div>
 
@@ -2173,12 +2389,30 @@ export default function DashboardHub() {
                       </div>
                     </div>
                     <div className={styles.infoGrid}>
-                      <InfoRow label="Business Name" value={selectedApplication.businessName} />
-                      <InfoRow label="Business Type" value={selectedApplication.businessType} />
-                      <InfoRow label="Business Address" value={selectedApplication.businessAddress} />
-                      <InfoRow label="Meat Establishment" value={selectedApplication.meatEstablishment} />
-                      <InfoRow label="Intended Route" value={selectedApplication.intendedRoute} />
-                      <InfoRow label="Latest Remarks" value={selectedApplication.remarks} />
+                      <InfoRow
+                        label="Business Name"
+                        value={selectedApplication.businessName}
+                      />
+                      <InfoRow
+                        label="Business Type"
+                        value={selectedApplication.businessType}
+                      />
+                      <InfoRow
+                        label="Business Address"
+                        value={selectedApplication.businessAddress}
+                      />
+                      <InfoRow
+                        label="Meat Establishment"
+                        value={selectedApplication.meatEstablishment}
+                      />
+                      <InfoRow
+                        label="Intended Route"
+                        value={selectedApplication.intendedRoute}
+                      />
+                      <InfoRow
+                        label="Latest Remarks"
+                        value={selectedApplication.remarks}
+                      />
                     </div>
                   </div>
 
@@ -2204,7 +2438,9 @@ export default function DashboardHub() {
                   <div className={styles.panelHeader}>
                     <div>
                       <span className={styles.kicker}>Document Review</span>
-                      <h2>{selectedDocument?.name || "No document selected"}</h2>
+                      <h2>
+                        {selectedDocument?.name || "No document selected"}
+                      </h2>
                     </div>
                     {selectedDocument?.webViewLink ? (
                       <a
@@ -2240,26 +2476,45 @@ export default function DashboardHub() {
                           <div className={styles.documentReviewActions}>
                             <span
                               className={
-                                documentReviewStatus(selectedDocument) === "Approved"
+                                documentReviewStatus(selectedDocument) ===
+                                "Approved"
                                   ? styles.documentApproved
-                                  : documentReviewStatus(selectedDocument) === "Rejected"
+                                  : documentReviewStatus(selectedDocument) ===
+                                      "Rejected"
                                     ? styles.documentRejected
                                     : styles.documentPending
                               }>
-                              {documentReviewStatus(selectedDocument) || "Pending review"}
+                              {documentReviewStatus(selectedDocument) ||
+                                "Pending review"}
                             </span>
                             <div>
                               <button
                                 type="button"
-                                onClick={() => updateDocumentReview(selectedDocument, "Approved")}
-                                disabled={Boolean(documentReviewSaving) || isViewOnlyLocked}>
+                                onClick={() =>
+                                  updateDocumentReview(
+                                    selectedDocument,
+                                    "Approved",
+                                  )
+                                }
+                                disabled={
+                                  Boolean(documentReviewSaving) ||
+                                  isViewOnlyLocked
+                                }>
                                 <ShieldCheckIcon aria-hidden="true" />
                                 Approved
                               </button>
                               <button
                                 type="button"
-                                onClick={() => updateDocumentReview(selectedDocument, "Rejected")}
-                                disabled={Boolean(documentReviewSaving) || isViewOnlyLocked}>
+                                onClick={() =>
+                                  updateDocumentReview(
+                                    selectedDocument,
+                                    "Rejected",
+                                  )
+                                }
+                                disabled={
+                                  Boolean(documentReviewSaving) ||
+                                  isViewOnlyLocked
+                                }>
                                 <XCircleIcon aria-hidden="true" />
                                 Rejected
                               </button>
@@ -2282,7 +2537,9 @@ export default function DashboardHub() {
                 </div>
               </div>
             ) : (
-              <p className={styles.emptyState}>Select an application to view details.</p>
+              <p className={styles.emptyState}>
+                Select an application to view details.
+              </p>
             )}
           </section>
         )}
@@ -2293,7 +2550,10 @@ export default function DashboardHub() {
               <div className={styles.panelHeader}>
                 <div>
                   <span className={styles.kicker}>Documents</span>
-                  <h2>{selectedApplication?.reference || "No application selected"}</h2>
+                  <h2>
+                    {selectedApplication?.reference ||
+                      "No application selected"}
+                  </h2>
                 </div>
                 {selectedApplication?.folderUrl ? (
                   <a
@@ -2341,7 +2601,8 @@ export default function DashboardHub() {
                 ))}
               </div>
 
-              {selectedApplication && selectedApplication.documents?.length === 0 ? (
+              {selectedApplication &&
+              selectedApplication.documents?.length === 0 ? (
                 <p className={styles.emptyState}>
                   No document files were returned. Use the Drive folder link if
                   the folder exists.
@@ -2383,7 +2644,8 @@ export default function DashboardHub() {
           className={styles.modalOverlay}
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setAccreditedAdvancedOpen(false);
+            if (event.target === event.currentTarget)
+              setAccreditedAdvancedOpen(false);
           }}>
           <div
             className={styles.searchModal}
@@ -2399,7 +2661,10 @@ export default function DashboardHub() {
                   type="text"
                   value={accreditedAdvancedFilters.reference}
                   onChange={(event) =>
-                    updateAccreditedAdvancedFilter("reference", event.target.value)
+                    updateAccreditedAdvancedFilter(
+                      "reference",
+                      event.target.value,
+                    )
                   }
                 />
               </label>
@@ -2419,7 +2684,10 @@ export default function DashboardHub() {
                   type="text"
                   value={accreditedAdvancedFilters.establishment}
                   onChange={(event) =>
-                    updateAccreditedAdvancedFilter("establishment", event.target.value)
+                    updateAccreditedAdvancedFilter(
+                      "establishment",
+                      event.target.value,
+                    )
                   }
                 />
               </label>
@@ -2428,7 +2696,10 @@ export default function DashboardHub() {
                 <select
                   value={accreditedAdvancedFilters.establishmentType}
                   onChange={(event) =>
-                    updateAccreditedAdvancedFilter("establishmentType", event.target.value)
+                    updateAccreditedAdvancedFilter(
+                      "establishmentType",
+                      event.target.value,
+                    )
                   }>
                   <option value="All">All establishment types</option>
                   {establishmentTypes.map((type) => (
@@ -2488,7 +2759,10 @@ export default function DashboardHub() {
                       value={accreditedAdvancedFilters.issuedStartDate}
                       onClick={openNativeDatePicker}
                       onChange={(event) =>
-                        updateAccreditedAdvancedFilter("issuedStartDate", event.target.value)
+                        updateAccreditedAdvancedFilter(
+                          "issuedStartDate",
+                          event.target.value,
+                        )
                       }
                     />
                     <input
@@ -2497,7 +2771,10 @@ export default function DashboardHub() {
                       value={accreditedAdvancedFilters.issuedEndDate}
                       onClick={openNativeDatePicker}
                       onChange={(event) =>
-                        updateAccreditedAdvancedFilter("issuedEndDate", event.target.value)
+                        updateAccreditedAdvancedFilter(
+                          "issuedEndDate",
+                          event.target.value,
+                        )
                       }
                     />
                   </div>
@@ -2542,7 +2819,10 @@ export default function DashboardHub() {
                       value={accreditedAdvancedFilters.expiryStartDate}
                       onClick={openNativeDatePicker}
                       onChange={(event) =>
-                        updateAccreditedAdvancedFilter("expiryStartDate", event.target.value)
+                        updateAccreditedAdvancedFilter(
+                          "expiryStartDate",
+                          event.target.value,
+                        )
                       }
                     />
                     <input
@@ -2551,7 +2831,10 @@ export default function DashboardHub() {
                       value={accreditedAdvancedFilters.expiryEndDate}
                       onClick={openNativeDatePicker}
                       onChange={(event) =>
-                        updateAccreditedAdvancedFilter("expiryEndDate", event.target.value)
+                        updateAccreditedAdvancedFilter(
+                          "expiryEndDate",
+                          event.target.value,
+                        )
                       }
                     />
                   </div>
@@ -2577,7 +2860,10 @@ export default function DashboardHub() {
                   type="checkbox"
                   checked={accreditedAdvancedFilters.expiringSoonOnly}
                   onChange={(event) =>
-                    updateAccreditedAdvancedFilter("expiringSoonOnly", event.target.checked)
+                    updateAccreditedAdvancedFilter(
+                      "expiringSoonOnly",
+                      event.target.checked,
+                    )
                   }
                 />
                 <label
@@ -2620,9 +2906,10 @@ export default function DashboardHub() {
             <span className={styles.kicker}>Confirm Cancellation</span>
             <h2 id="accredited-cancel-title">Cancel accredited MTV?</h2>
             <p>
-              This will mark <strong>{pendingAccreditedRecord.reference}</strong>{" "}
-              with plate <strong>{pendingAccreditedRecord.plate || "No plate"}</strong>{" "}
-              as <strong>Cancelled</strong> in the Accredited sheet.
+              This will mark{" "}
+              <strong>{pendingAccreditedRecord.reference}</strong> with plate{" "}
+              <strong>{pendingAccreditedRecord.plate || "No plate"}</strong> as{" "}
+              <strong>Cancelled</strong> in the Accredited sheet.
             </p>
             <div className={styles.modalActions}>
               <button
@@ -2665,7 +2952,10 @@ export default function DashboardHub() {
               notified by email.
             </p>
             <label className={styles.modalLabel} htmlFor="status-remarks">
-              Remarks {REMARKS_REQUIRED_STATUSES.includes(pendingStatus) ? <span className={styles.requiredMark}>*</span> : null}
+              Remarks{" "}
+              {REMARKS_REQUIRED_STATUSES.includes(pendingStatus) ? (
+                <span className={styles.requiredMark}>*</span>
+              ) : null}
             </label>
             <textarea
               id="status-remarks"
@@ -2679,9 +2969,9 @@ export default function DashboardHub() {
                   ? "Tell the applicant what information or documents must be amended."
                   : pendingStatus === "Rejected Proof of Payment"
                     ? "Tell the applicant what proof of payment issue must be corrected."
-                  : pendingStatus === "Cancelled"
-                    ? "State the reason for cancelling this application."
-                  : "Add optional notes for this status update."
+                    : pendingStatus === "Cancelled"
+                      ? "State the reason for cancelling this application."
+                      : "Add optional notes for this status update."
               }
               rows={4}
             />
@@ -2699,7 +2989,8 @@ export default function DashboardHub() {
                 disabled={
                   saving ||
                   isViewOnlyLocked ||
-                  (REMARKS_REQUIRED_STATUSES.includes(pendingStatus) && !pendingRemarks.trim())
+                  (REMARKS_REQUIRED_STATUSES.includes(pendingStatus) &&
+                    !pendingRemarks.trim())
                 }
                 onClick={confirmStatusChange}>
                 {saving ? "Updating..." : "Confirm update"}
