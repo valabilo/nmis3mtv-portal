@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApplicationByRef } from "@/lib/googleSheets";
+import { REQUIRED_DOCS } from "@/data/requiredDocs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,21 +19,61 @@ function parseStatusHistory(value) {
 function hasSubmittedAmendment(row) {
   const history = parseStatusHistory(row.status_history);
   const latest = history[history.length - 1] || {};
-  const status = String(row.status || "").trim().toLowerCase();
-  const remarks = String(latest.remarks || row.remarks || "").trim().toLowerCase();
+  const status = String(row.status || "")
+    .trim()
+    .toLowerCase();
+  const remarks = String(latest.remarks || row.remarks || "")
+    .trim()
+    .toLowerCase();
 
-  return status === "application received" && remarks.includes("amendment submitted");
+  return (
+    status === "application received" && remarks.includes("amendment submitted")
+  );
 }
 
 function isAmendmentOpen(row) {
-  const status = String(row.status || "").trim().toLowerCase();
+  const status = String(row.status || "")
+    .trim()
+    .toLowerCase();
   return status === "rejected application";
+}
+
+function parseDocumentReview(value) {
+  if (!value) return {};
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function documentIdFromReviewedFileName(ref, fileName) {
+  const name = String(fileName || "");
+  return (
+    REQUIRED_DOCS.find((doc) => name.startsWith(`${ref}_${doc.id}_`))?.id || ""
+  );
+}
+
+function rejectedDocumentIdsForAmendment(row, ref) {
+  const review = parseDocumentReview(row.document_review);
+  const rejectedIds = Object.values(review)
+    .filter((item) => String(item?.status || "").trim() === "Rejected")
+    .map((item) => documentIdFromReviewedFileName(ref, item?.name))
+    .filter(Boolean);
+
+  return [...new Set(rejectedIds)];
 }
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const ref = String(searchParams.get("ref") || "").trim().toUpperCase();
+    const ref = String(searchParams.get("ref") || "")
+      .trim()
+      .toUpperCase();
 
     if (!ref) {
       return NextResponse.json(
@@ -61,11 +102,15 @@ export async function GET(request) {
       );
     }
 
+    const rejectedDocumentIds = rejectedDocumentIdsForAmendment(row, ref);
+
     return NextResponse.json({
       success: true,
       application: {
         reference: row.ref_number || ref,
-        applicationType: "Amendment",
+        applicationType: String(
+          row.application_type || row.applicationType || "New",
+        ).trim(),
         registeredOwner: row.registered_owner || "",
         email: row.email || "",
         contact: row.contact || "",
@@ -92,6 +137,7 @@ export async function GET(request) {
         btype: row.btype || "",
         baddress: row.baddress || "",
         folderId: row.drive_folder_id || "",
+        rejectedDocumentIds,
       },
     });
   } catch (error) {

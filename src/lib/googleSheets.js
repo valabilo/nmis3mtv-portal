@@ -221,6 +221,66 @@ export async function getBannedList() {
   return readSheet("Banned");
 }
 
+export async function createBannedRecord(record) {
+  const date = String(record.date || "").trim() || formatDateOnly(todayDateOnly());
+  const status = String(record.status || "").trim() || "Banned";
+  const valuesByHeader = {
+    plate: String(record.plate || "").trim().toUpperCase(),
+    plate_no: String(record.plate || "").trim().toUpperCase(),
+    plate_number: String(record.plate || "").trim().toUpperCase(),
+    business: String(record.business || "").trim(),
+    business_name: String(record.business || "").trim(),
+    bname: String(record.business || "").trim(),
+    owner: String(record.owner || "").trim(),
+    applicant: String(record.owner || "").trim(),
+    name: String(record.owner || "").trim(),
+    operator: String(record.owner || "").trim(),
+    proprietor: String(record.owner || "").trim(),
+    reason: String(record.reason || "").trim(),
+    violation: String(record.reason || "").trim(),
+    remarks: String(record.reason || "").trim(),
+    date,
+    date_banned: date,
+    banned_date: date,
+    timestamp: date,
+    status,
+    created_at: new Date().toISOString(),
+  };
+
+  if (!valuesByHeader.plate) {
+    throw new Error("Plate number is required.");
+  }
+
+  if (!valuesByHeader.reason) {
+    throw new Error("Reason is required.");
+  }
+
+  await ensureHeaders("Banned", [
+    "plate",
+    "business",
+    "owner",
+    "reason",
+    "date",
+    "status",
+    "created_at",
+  ]);
+
+  const { headers } = await readSheetWithRowNumbers("Banned");
+  const rowValues = headers.map((header) => valuesByHeader[header] ?? "");
+
+  await appendRow("Banned", rowValues);
+
+  return {
+    plate: valuesByHeader.plate,
+    business: valuesByHeader.business,
+    owner: valuesByHeader.owner,
+    reason: valuesByHeader.reason,
+    date,
+    status,
+    created_at: valuesByHeader.created_at,
+  };
+}
+
 export async function getGHPCompletions() {
   return readSheet("GHP_Completions");
 }
@@ -929,7 +989,7 @@ const ACCREDITED_HEADERS = [
 
 const REGISTRATION_PREFIX = "NMIS-III-";
 const REGISTRATION_SEQUENCE_FLOOR = 2593;
-const ACCREDITED_FORMULA_HEADERS = new Set(["validity", "valid", "remarks"]);
+const ACCREDITED_FORMULA_HEADERS = new Set(["validity", "valid"]);
 
 function registrationSequence(value) {
   const match = String(value || "").match(/^NMIS-III-(\d+)$/i);
@@ -1347,6 +1407,7 @@ export async function upsertAccreditedFromApplication(application) {
     expiry_date: expiryDate,
     expiration_date: expiryDate,
     valid_until: expiryDate,
+    remarks: application.remarks || "",
     status: "Active",
     approved_at: isRenewal ? dateIssued : now.toISOString(),
     email: application.email || "",

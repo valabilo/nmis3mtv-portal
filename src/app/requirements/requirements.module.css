@@ -218,11 +218,15 @@
 }
 
 .requirements {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-count: 2;
+  column-gap: 34px;
+  display: block;
   list-style-position: outside;
 }
 
 .requirements li {
+  break-inside: avoid;
+  margin-bottom: 10px;
   padding-right: 14px;
 }
 
@@ -293,6 +297,7 @@
   .overview,
   .requirements,
   .downloadGrid {
+    column-count: 1;
     grid-template-columns: 1fr;
   }
 

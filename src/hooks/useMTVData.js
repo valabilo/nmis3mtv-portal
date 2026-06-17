@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { accreditedStatusForRow } from '@/lib/accreditedStatus'
 
 const ENDPOINTS = {
   accredited: '/api/accredited',
@@ -13,24 +14,6 @@ function firstValue(row, keys) {
   }
 
   return ''
-}
-
-function statusValue(row) {
-  const status = firstValue(row, ['status'])
-  const normalizedStatus = status.trim().toLowerCase()
-  const statusLabels = {
-    active: 'Active',
-    inactive: 'Inactive',
-    suspended: 'Suspended',
-    revoked: 'Revoked',
-    expired: 'Expired',
-    cancelled: 'Cancelled',
-  }
-  if (statusLabels[normalizedStatus]) {
-    return statusLabels[normalizedStatus]
-  }
-
-  return 'Active'
 }
 
 function normalizeRecord(row, type) {
@@ -60,8 +43,8 @@ function normalizeRecord(row, type) {
     receiptDate: firstValue(row, ['receipt_date', 'or_date']),
     receiptNo: firstValue(row, ['receipt_no', 'receipt_number', 'or_number']),
     remarks: firstValue(row, ['remarks', 'status']),
-    expiry: firstValue(row, ['expiry', 'expiry_date', 'expiration_date', 'validity', 'valid', 'valid_until']),
-    status: statusValue(row),
+    expiry: firstValue(row, ['expiry', 'expiry_date', 'expiration_date', 'valid_until', 'validity', 'valid']),
+    status: accreditedStatusForRow(row),
   }
 }
 

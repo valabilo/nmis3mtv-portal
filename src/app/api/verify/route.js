@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { getAccreditedList, getBannedList } from "@/lib/googleSheets";
+import { accreditedStatusForRow } from "@/lib/accreditedStatus";
 
 function normalize(value) {
   return String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -42,7 +43,7 @@ export async function POST(request) {
     const accredited = accreditedList.find(
       (item) => normalize(item.plate || item.plate_no || item.plate_number) === normalizedPlate,
     );
-    const accreditedStatus = firstValue(accredited || {}, ["status"]) || "Active";
+    const accreditedStatus = accredited ? accreditedStatusForRow(accredited) : "Active";
     const status = isBanned ? "Banned" : accredited ? accreditedStatus : "Not Found";
 
     return NextResponse.json(

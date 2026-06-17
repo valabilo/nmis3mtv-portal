@@ -274,6 +274,7 @@ export default function ApplicationForm() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [originalAmendmentData, setOriginalAmendmentData] = useState(null);
+  const [amendmentDocumentIds, setAmendmentDocumentIds] = useState([]);
   const [files, setFiles] = useState({});
   const [agree, setAgree] = useState(false);
   const [refNumber, setRefNumber] = useState("");
@@ -380,7 +381,6 @@ export default function ApplicationForm() {
       if (draftMatchesAmendment) {
         setFormData({
           ...draft.formData,
-          applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         });
         setRenewalPlateLocked(false);
@@ -389,7 +389,6 @@ export default function ApplicationForm() {
       } else {
         setFormData((prev) => ({
           ...prev,
-          applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         }));
         setRenewalPlateLocked(false);
@@ -402,7 +401,10 @@ export default function ApplicationForm() {
         );
         const json = await res.json();
         if (!res.ok || !json.success) {
-          if (res.status === 409 && json.code === "AMENDMENT_ALREADY_SUBMITTED") {
+          if (
+            res.status === 409 &&
+            json.code === "AMENDMENT_ALREADY_SUBMITTED"
+          ) {
             setAmendmentClosedMessage(
               json.error ||
                 "The record has been amended and already submitted. Please wait for NMIS to verify the record.",
@@ -417,18 +419,31 @@ export default function ApplicationForm() {
         if (cancelled) return;
 
         const application = json.application || {};
+        const rejectedDocumentIds = Array.isArray(
+          application.rejectedDocumentIds,
+        )
+          ? application.rejectedDocumentIds
+          : [];
         setAmendmentFolderId(application.folderId || "");
+        setAmendmentDocumentIds(rejectedDocumentIds);
         setOriginalAmendmentData({
           ...application,
-          applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         });
         setFormData((prev) => ({
           ...prev,
           ...application,
-          applicationType: "Amendment",
           amendmentRef: normalizedAmendmentRef,
         }));
+        if (rejectedDocumentIds.length) {
+          setFiles((currentFiles) =>
+            Object.fromEntries(
+              Object.entries(currentFiles).filter(([docId]) =>
+                rejectedDocumentIds.includes(docId),
+              ),
+            ),
+          );
+        }
       } catch (error) {
         if (!cancelled) {
           showToast(error.message || "Unable to load amendment details.", true);
@@ -454,14 +469,17 @@ export default function ApplicationForm() {
         amendmentRef: "",
       });
       setOriginalAmendmentData(null);
+      setAmendmentDocumentIds([]);
       setRenewalPlateLocked(
-        draft.formData.applicationType === "Renewal" && Boolean(draft.formData.plate),
+        draft.formData.applicationType === "Renewal" &&
+          Boolean(draft.formData.plate),
       );
       setStep(draft.step);
       setAgree(draft.agree);
     } else {
       setFormData(INITIAL_FORM);
       setOriginalAmendmentData(null);
+      setAmendmentDocumentIds([]);
       setRenewalPlateLocked(false);
     }
     setAmendmentClosedMessage("");
@@ -520,6 +538,7 @@ export default function ApplicationForm() {
   function resetToNewApplication() {
     setFormData(INITIAL_FORM);
     setOriginalAmendmentData(null);
+    setAmendmentDocumentIds([]);
     setAmendmentFolderId("");
     setRenewalPlate("");
     setRenewalLookupError("");
@@ -556,7 +575,9 @@ export default function ApplicationForm() {
     event?.preventDefault();
     const plate = renewalPlate.trim().toUpperCase();
     if (!plate) {
-      setRenewalLookupError("Enter the plate number to find the previous MTV record.");
+      setRenewalLookupError(
+        "Enter the plate number to find the previous MTV record.",
+      );
       return;
     }
 
@@ -658,8 +679,12 @@ export default function ApplicationForm() {
    * Returns true if valid, shows a toast and returns false if not.
    */
   function runDocumentValidation() {
+    const amendmentRequiredDocs =
+      formData.amendmentRef && amendmentDocumentIds.length
+        ? REQUIRED_DOCS.filter((d) => amendmentDocumentIds.includes(d.id))
+        : [];
     const missingDocs = formData.amendmentRef
-      ? []
+      ? amendmentRequiredDocs.filter((d) => !files[d.id])
       : REQUIRED_DOCS.filter((d) => d.required && !files[d.id]);
     if (missingDocs.length) {
       showToast(
@@ -684,9 +709,10 @@ export default function ApplicationForm() {
   }
 
   function isDocumentStepComplete() {
-    const hasRequiredDocs =
-      formData.amendmentRef ||
-      REQUIRED_DOCS.every((doc) => !doc.required || files[doc.id]);
+    const hasRequiredDocs = formData.amendmentRef
+      ? !amendmentDocumentIds.length ||
+        amendmentDocumentIds.every((docId) => Boolean(files[docId]))
+      : REQUIRED_DOCS.every((doc) => !doc.required || files[doc.id]);
 
     return hasRequiredDocs && agree;
   }
@@ -740,7 +766,8 @@ export default function ApplicationForm() {
    * For step 1 → 2 the GHP cert is also validated when provided.
    */
   async function validateNewPlateIsNotExistingMtv() {
-    if (formData.applicationType !== "New" || formData.amendmentRef) return true;
+    if (formData.applicationType !== "New" || formData.amendmentRef)
+      return true;
 
     const plate = formData.plate?.trim();
     if (!plate) return true;
@@ -843,7 +870,9 @@ export default function ApplicationForm() {
         });
         const refJson = await refRes.json();
         if (!refJson.success)
-          throw new Error(refJson.error || "Failed to generate reference number");
+          throw new Error(
+            refJson.error || "Failed to generate reference number",
+          );
         generatedRefNumber = refJson.refNumber; // e.g. "MTV-2026-000001"
       }
 
@@ -937,6 +966,7 @@ export default function ApplicationForm() {
     setStep(1);
     setFormData(INITIAL_FORM);
     setOriginalAmendmentData(null);
+    setAmendmentDocumentIds([]);
     setFiles({});
     setAgree(false);
     setSubmitted(false);
@@ -1063,6 +1093,7 @@ export default function ApplicationForm() {
             onNext={() => goToStep(4, true)}
             showToast={showToast}
             isAmendment={Boolean(formData.amendmentRef)}
+            amendmentDocumentIds={amendmentDocumentIds}
           />
         )}
         {step === 4 && (

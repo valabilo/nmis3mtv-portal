@@ -13,7 +13,23 @@ function getDocName(doc) {
   return doc.label || doc.name || ''
 }
 
-export default function Step3Documents({ files, setFiles, agree, setAgree, onBack, onNext, showToast, isAmendment = false }) {
+export default function Step3Documents({
+  files,
+  setFiles,
+  agree,
+  setAgree,
+  onBack,
+  onNext,
+  showToast,
+  isAmendment = false,
+  amendmentDocumentIds = [],
+}) {
+  const visibleDocs =
+    isAmendment && amendmentDocumentIds.length
+      ? REQUIRED_DOCS.filter((doc) => amendmentDocumentIds.includes(doc.id))
+      : REQUIRED_DOCS
+  const requiredDocIds = new Set(amendmentDocumentIds)
+
   function addFile(docId, file) {
     if (file.size > MAX_FILE_SIZE) {
       showToast('File too large. Maximum size is 5 MB.', true)
@@ -51,10 +67,10 @@ export default function Step3Documents({ files, setFiles, agree, setAgree, onBac
       </p>
 
       <div className={docStyles.docList}>
-        {REQUIRED_DOCS.map(doc => (
+        {visibleDocs.map(doc => (
           <div key={doc.id} className={docStyles.docItem} id={`doc_${doc.id}`}>
             <label className={docStyles.docLabel}>
-              {getDocName(doc)} {doc.required && !isAmendment ? <span className="req">*</span> : <span style={{ color: 'var(--gray-500)', fontWeight: 600 }}>(optional)</span>}
+              {getDocName(doc)} {(!isAmendment && doc.required) || (isAmendment && requiredDocIds.has(doc.id)) ? <span className="req">*</span> : <span style={{ color: 'var(--gray-500)', fontWeight: 600 }}>(optional)</span>}
             </label>
             <p className={docStyles.dropHint}>{doc.description}</p>
 

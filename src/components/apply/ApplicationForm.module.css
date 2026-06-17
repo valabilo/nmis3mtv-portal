@@ -4,6 +4,7 @@
   background: var(--white);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
+  display: flow-root;
   overflow: visible;
 }
 

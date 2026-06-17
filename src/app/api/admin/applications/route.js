@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  createBannedRecord,
   getApplicationByRef,
   getAccreditedList,
   getApplications,
+  getBannedList,
   getCertificateIssuance,
   getGHPCompletions,
   upsertAccreditedFromApplication,
@@ -17,6 +19,7 @@ import {
   sendApplicationStatusUpdateToNMIS,
 } from "@/lib/sendMail";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
+import { accreditedStatusForRow } from "@/lib/accreditedStatus";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -142,25 +145,6 @@ function firstValue(row, keys) {
   return "";
 }
 
-function accreditedStatus(row) {
-  const status = firstValue(row, ["status"]);
-  const normalizedStatus = status.trim().toLowerCase();
-  const statusLabels = {
-    active: "Active",
-    inactive: "Inactive",
-    suspended: "Suspended",
-    revoked: "Revoked",
-    expired: "Expired",
-    cancelled: "Cancelled",
-  };
-
-  if (statusLabels[normalizedStatus]) {
-    return statusLabels[normalizedStatus];
-  }
-
-  return "Active";
-}
-
 function normalizeAccredited(row) {
   return {
     reference: firstValue(row, ["ref_number", "reference", "registration_no"]),
@@ -176,8 +160,19 @@ function normalizeAccredited(row) {
     receiptDate: firstValue(row, ["receipt_date", "or_date"]),
     receiptNo: firstValue(row, ["receipt_no", "receipt_number", "or_number"]),
     remarks: firstValue(row, ["remarks"]),
-    status: accreditedStatus(row),
+    status: accreditedStatusForRow(row),
     approvedAt: firstValue(row, ["approved_at", "timestamp", "date", "date_issued"]),
+  };
+}
+
+function normalizeBanned(row) {
+  return {
+    plate: firstValue(row, ["plate", "plate_no", "plate_number"]),
+    business: firstValue(row, ["business", "business_name", "bname"]),
+    owner: firstValue(row, ["owner", "applicant", "name", "operator", "proprietor"]),
+    reason: firstValue(row, ["reason", "violation", "remarks"]),
+    date: firstValue(row, ["date", "date_banned", "banned_date", "timestamp"]),
+    status: firstValue(row, ["status"]) || "Banned",
   };
 }
 
@@ -201,9 +196,10 @@ export async function GET(request) {
   if (!requestHasDashboardSession(request)) return unauthorizedResponse();
 
   try {
-    const [rowsResult, accreditedResult, ghpResult] = await Promise.allSettled([
+    const [rowsResult, accreditedResult, bannedResult, ghpResult] = await Promise.allSettled([
       getApplications(),
       getAccreditedList(),
+      getBannedList(),
       getCertificateIssuance(),
     ]);
     if (rowsResult.status === "rejected") throw rowsResult.reason;
@@ -211,6 +207,8 @@ export async function GET(request) {
     const rows = rowsResult.value;
     const accreditedRows =
       accreditedResult.status === "fulfilled" ? accreditedResult.value : [];
+    const bannedRows =
+      bannedResult.status === "fulfilled" ? bannedResult.value : [];
     let ghpRows = ghpResult.status === "fulfilled" ? ghpResult.value : [];
     if (ghpResult.status === "rejected") {
       try {
@@ -248,6 +246,7 @@ export async function GET(request) {
     );
 
     const accredited = accreditedRows.map(normalizeAccredited);
+    const banned = bannedRows.map(normalizeBanned);
     const currentYear = new Date().getFullYear();
     const ghpIssuedThisYear = ghpRows.filter((row) =>
       isInYear(
@@ -270,6 +269,7 @@ export async function GET(request) {
       success: true,
       data: applications,
       accredited,
+      banned,
       stats: {
         year: currentYear,
         accreditedTotal: accredited.length,
@@ -285,6 +285,47 @@ export async function GET(request) {
         success: false,
         error: error.message || "Failed to load applications.",
         data: [],
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request) {
+  if (!requestHasDashboardSession(request)) return unauthorizedResponse();
+
+  try {
+    const body = await request.json();
+    const action = String(body.action || "").trim();
+
+    if (action !== "create-banned") {
+      return NextResponse.json(
+        { success: false, error: "Unsupported admin action." },
+        { status: 400 },
+      );
+    }
+
+    const banned = normalizeBanned(
+      await createBannedRecord({
+        plate: body.plate,
+        business: body.business,
+        owner: body.owner,
+        reason: body.reason,
+        date: body.date,
+        status: body.status,
+      }),
+    );
+
+    return NextResponse.json({
+      success: true,
+      banned,
+    });
+  } catch (error) {
+    console.error("Admin create banned MTV error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to add banned MTV.",
       },
       { status: 500 },
     );

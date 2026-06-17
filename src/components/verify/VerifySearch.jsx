@@ -5,6 +5,41 @@ import StatusTag from "@/components/ui/StatusTag";
 import { normalise } from "@/lib/utils";
 import styles from "./VerifySearch.module.css";
 
+function addMonths(date, months) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function isExpiringSoon(value, status) {
+  if (
+    !value ||
+    ["Cancelled", "Expired", "Inactive", "Revoked", "Suspended"].includes(status)
+  ) {
+    return false;
+  }
+
+  const expiry = new Date(value);
+  if (Number.isNaN(expiry.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+
+  return expiry >= today && expiry <= addMonths(today, 2);
+}
+
+function StatusWithExpiry({ status, expiry }) {
+  return (
+    <span className={styles.statusStack}>
+      <StatusTag status={status || "Active"} />
+      {isExpiringSoon(expiry, status) ? (
+        <span className={styles.expiringBadge}>Expiring soon</span>
+      ) : null}
+    </span>
+  );
+}
+
 function accreditationMessage(status) {
   if (status === "Active") {
     return "This vehicle is currently ACCREDITED and authorized to transport meat.";
@@ -61,6 +96,7 @@ export default function VerifySearch({ data, showToast, initialQ = "" }) {
   }
 
   const stat = result?.status || "Active";
+  const expiry = result?.expiry || result?.expiry_date;
 
   return (
     <div className={styles.wrap}>
@@ -94,7 +130,7 @@ export default function VerifySearch({ data, showToast, initialQ = "" }) {
         <div className={styles.resultCard}>
           <div className={styles.resultHeader}>
             <h3>{result.plate || result.plate_no} - {result.business || result.business_name}</h3>
-            <StatusTag status={stat} />
+            <StatusWithExpiry status={stat} expiry={expiry} />
           </div>
           <div className={styles.resultBody}>
             <div className={styles.resultGrid}>
@@ -104,15 +140,9 @@ export default function VerifySearch({ data, showToast, initialQ = "" }) {
                 ["Business Name", result.business || result.business_name],
                 ["Owner", result.owner],
                 ["Address", result.address],
-                ["Tel No.", result.telNo || result.tel_no],
                 ["Date Issued", result.dateIssued || result.date_issued],
-                ["Sticker No.", result.stickerNo || result.sticker_no],
-                ["Expiry Date", result.expiry || result.expiry_date],
-                ["Receipt Date", result.receiptDate || result.receipt_date],
-                ["Receipt No.", result.receiptNo || result.receipt_no],
-                ["Valid", result.validity || result.valid],
-                ["Remarks", result.remarks],
-                ["Status", <StatusTag key="s" status={stat} />],
+                ["Expiry Date", expiry],
+                ["Status", <StatusWithExpiry key="s" status={stat} expiry={expiry} />],
               ].map(([label, val]) => (
                 <div key={label} className={styles.resultItem}>
                   <label>{label}</label>

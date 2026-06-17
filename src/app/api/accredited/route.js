@@ -5,12 +5,16 @@
 
 import { NextResponse } from "next/server";
 import { getAccreditedList } from "@/lib/googleSheets";
+import { accreditedStatusForRow } from "@/lib/accreditedStatus";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const data = await getAccreditedList();
+    const data = (await getAccreditedList()).map((row) => ({
+      ...row,
+      status: accreditedStatusForRow(row),
+    }));
     return NextResponse.json(
       { success: true, data, count: data.length },
       { status: 200 },

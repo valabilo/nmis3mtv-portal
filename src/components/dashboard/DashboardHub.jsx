@@ -15,6 +15,7 @@ import {
   FolderOpenIcon,
   HomeIcon,
   MagnifyingGlassIcon,
+  PlusIcon,
   ShieldCheckIcon,
   Squares2X2Icon,
   TruckIcon,
@@ -64,6 +65,8 @@ const ACCREDITED_STATUSES = [
   "Cancelled",
 ];
 
+const BANNED_STATUSES = ["Banned", "Suspended", "Revoked"];
+
 const TABS = [
   { id: "overview", label: "Overview", icon: Squares2X2Icon },
   { id: "analytics", label: "Analytics", icon: ChartBarIcon },
@@ -73,6 +76,7 @@ const TABS = [
     icon: ClipboardDocumentListIcon,
   },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
+  { id: "banned", label: "Banned", icon: XCircleIcon },
   { id: "details", label: "Details", icon: DocumentTextIcon },
   { id: "documents", label: "Documents", icon: FolderOpenIcon },
 ];
@@ -114,6 +118,15 @@ const ACCREDITED_EXPORT_COLUMNS = [
   ["Date Issued", "approvedAt"],
   ["Expiry Date", "expiry"],
   ["Status", (row) => row.status || "Active"],
+];
+
+const BANNED_EXPORT_COLUMNS = [
+  ["Plate No.", "plate"],
+  ["Business Name", "business"],
+  ["Owner", "owner"],
+  ["Reason", "reason"],
+  ["Date Banned", "date"],
+  ["Status", "status"],
 ];
 
 const AUDIT_TRAIL_EXPORT_COLUMNS = [
@@ -169,6 +182,29 @@ const ACCREDITED_TABLE_COLUMNS = [
   },
 ];
 
+const BANNED_TABLE_COLUMNS = [
+  {
+    key: "plate",
+    label: "Plate No.",
+    className: "noWrap",
+    render: (value) => <strong>{value}</strong>,
+  },
+  { key: "business", label: "Business Name" },
+  { key: "owner", label: "Owner" },
+  { key: "reason", label: "Reason" },
+  {
+    key: "date",
+    label: "Date Banned",
+    className: "noWrap",
+    render: (value) => formatDate(value),
+  },
+  {
+    key: "status",
+    label: "Status",
+    render: (value) => <StatusTag status={value || "Banned"} />,
+  },
+];
+
 const EMPTY_ACCREDITED_ADVANCED_FILTERS = {
   reference: "",
   plate: "",
@@ -185,6 +221,15 @@ const EMPTY_ACCREDITED_ADVANCED_FILTERS = {
   expiryStartDate: "",
   expiryEndDate: "",
   expiringSoonOnly: false,
+};
+
+const EMPTY_BANNED_FORM = {
+  plate: "",
+  business: "",
+  owner: "",
+  reason: "",
+  date: "",
+  status: "Banned",
 };
 
 const MONTHS = [
@@ -894,6 +939,7 @@ export default function DashboardHub() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [applications, setApplications] = useState([]);
   const [accreditedRecords, setAccreditedRecords] = useState([]);
+  const [bannedRecords, setBannedRecords] = useState([]);
   const [stats, setStats] = useState({
     year: new Date().getFullYear(),
     accreditedTotal: 0,
@@ -920,6 +966,8 @@ export default function DashboardHub() {
   const [pendingStatus, setPendingStatus] = useState("");
   const [pendingRemarks, setPendingRemarks] = useState("");
   const [pendingAccreditedRecord, setPendingAccreditedRecord] = useState(null);
+  const [bannedModalOpen, setBannedModalOpen] = useState(false);
+  const [bannedForm, setBannedForm] = useState(EMPTY_BANNED_FORM);
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [documentReviewSaving, setDocumentReviewSaving] = useState("");
   const [recordLock, setRecordLock] = useState(null);
@@ -960,6 +1008,7 @@ export default function DashboardHub() {
         knownApplicationsRef.current = buildApplicationSnapshotMap(records);
         knownApplicationsReadyRef.current = true;
         setAccreditedRecords(json.accredited || []);
+        setBannedRecords(json.banned || []);
         setStats((current) => ({ ...current, ...(json.stats || {}) }));
         setSelectedRef((current) => current || records[0]?.reference || "");
       } catch (err) {
@@ -1011,6 +1060,7 @@ export default function DashboardHub() {
     );
     knownApplicationsReadyRef.current = true;
     setAccreditedRecords(refreshedJson.accredited || []);
+    setBannedRecords(refreshedJson.banned || []);
     setStats((current) => ({ ...current, ...(refreshedJson.stats || {}) }));
   }
 
@@ -1728,6 +1778,55 @@ export default function DashboardHub() {
     }
   }
 
+  async function submitBannedRecord(event) {
+    event.preventDefault();
+
+    const plate = bannedForm.plate.trim();
+    const reason = bannedForm.reason.trim();
+
+    if (!plate) {
+      setError("Plate number is required.");
+      return;
+    }
+
+    if (!reason) {
+      setError("Reason is required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/admin/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create-banned",
+          ...bannedForm,
+          plate,
+          reason,
+        }),
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || "Failed to add banned MTV.");
+      }
+
+      setBannedRecords((records) => [json.banned, ...records]);
+      await refreshDashboardData();
+      setNotice(`Banned MTV ${json.banned?.plate || plate} added.`);
+      setBannedModalOpen(false);
+      setBannedForm(EMPTY_BANNED_FORM);
+    } catch (err) {
+      setError(err.message || "Failed to add banned MTV.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function cancelStatusChange() {
     if (saving) return;
     setDraftStatus(selectedApplication?.status || "");
@@ -1770,6 +1869,17 @@ export default function DashboardHub() {
     });
     setNotice(
       `Exported ${rows.length} filtered accredited records${parts > 1 ? ` into ${parts} files` : ""}.`,
+    );
+  }
+
+  function exportBanned(rows = bannedRecords) {
+    const parts = exportCsv({
+      filenameBase: "mtv-banned",
+      columns: BANNED_EXPORT_COLUMNS,
+      rows,
+    });
+    setNotice(
+      `Exported ${rows.length} filtered banned records${parts > 1 ? ` into ${parts} files` : ""}.`,
     );
   }
 
@@ -2217,6 +2327,53 @@ export default function DashboardHub() {
                       type="button"
                       className={styles.exportButton}
                       onClick={() => exportAccredited(filteredRows)}
+                      disabled={loading || filteredRows.length === 0}>
+                      <ArrowDownTrayIcon aria-hidden="true" />
+                      Export CSV
+                    </button>
+                  </>
+                )}
+              />
+            </div>
+          </section>
+        )}
+
+        {activeTab === "banned" && (
+          <section className={styles.section}>
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div>
+                  <span className={styles.kicker}>Compliance</span>
+                  <h2>Banned / Suspended MTV Records</h2>
+                </div>
+                <Link href="/banned" className={styles.openFolder}>
+                  Public banned list
+                  <ArrowTopRightOnSquareIcon aria-hidden="true" />
+                </Link>
+              </div>
+
+              <DataTable
+                title="Banned MTVs - Central Luzon Region"
+                columns={BANNED_TABLE_COLUMNS}
+                data={bannedRecords}
+                loading={loading}
+                emptyText="No banned records found."
+                toolbarActions={({ filteredRows }) => (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.advancedButton}
+                      onClick={() => {
+                        setBannedForm(EMPTY_BANNED_FORM);
+                        setBannedModalOpen(true);
+                      }}>
+                      <PlusIcon aria-hidden="true" />
+                      Add banned MTV
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.exportButton}
+                      onClick={() => exportBanned(filteredRows)}
                       disabled={loading || filteredRows.length === 0}>
                       <ArrowDownTrayIcon aria-hidden="true" />
                       Export CSV
@@ -2928,6 +3085,133 @@ export default function DashboardHub() {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {bannedModalOpen ? (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) {
+              setBannedModalOpen(false);
+            }
+          }}>
+          <form
+            className={styles.searchModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="banned-form-title"
+            onSubmit={submitBannedRecord}>
+            <span className={styles.modalKicker}>Banned MTV</span>
+            <h2 id="banned-form-title">Add banned MTV</h2>
+            <div className={styles.filterGrid}>
+              <label>
+                <span>
+                  Plate No. <span className={styles.requiredMark}>*</span>
+                </span>
+                <input
+                  type="text"
+                  value={bannedForm.plate}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      plate: event.target.value.toUpperCase(),
+                    }))
+                  }
+                  placeholder="ABC 1234"
+                  required
+                />
+              </label>
+              <label>
+                <span>Status</span>
+                <select
+                  value={bannedForm.status}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }>
+                  {BANNED_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Business Name</span>
+                <input
+                  type="text"
+                  value={bannedForm.business}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      business: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                <span>Owner</span>
+                <input
+                  type="text"
+                  value={bannedForm.owner}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      owner: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                <span>Date Banned</span>
+                <input
+                  type="date"
+                  value={bannedForm.date}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      date: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className={styles.fullWidthField}>
+                <span>
+                  Reason <span className={styles.requiredMark}>*</span>
+                </span>
+                <textarea
+                  className={styles.modalTextarea}
+                  value={bannedForm.reason}
+                  onChange={(event) =>
+                    setBannedForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                disabled={saving}
+                onClick={() => setBannedModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={styles.dangerButton}
+                disabled={saving}>
+                {saving ? "Adding..." : "Add banned MTV"}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 

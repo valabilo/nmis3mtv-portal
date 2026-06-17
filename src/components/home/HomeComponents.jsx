@@ -121,7 +121,9 @@ export function ProcessSteps() {
         <div className={styles.processGrid}>
           {processSteps.map((step, index) => (
             <article key={step.label} className={styles.processStep}>
-              <span className={styles.stepNumber}>{String(index + 1).padStart(2, "0")}</span>
+              <span className={styles.stepNumber}>
+                {String(index + 1).padStart(2, "0")}
+              </span>
               <h3>{step.label}</h3>
               <p>{step.desc}</p>
             </article>
@@ -139,7 +141,10 @@ export function CTAStrip() {
         <div>
           <span className={styles.ctaLabel}>Ready to apply?</span>
           <h2>Submit or track your MTV application online.</h2>
-          <p>Use the application page for new submissions and reference number lookups.</p>
+          <p>
+            Use the application page for new submissions and reference number
+            lookups.
+          </p>
         </div>
         <Link href="/apply" className={styles.ctaButton}>
           Open Application
@@ -156,7 +161,6 @@ export function InfoCards() {
         <div className={styles.infoGrid}>
           <article className={styles.infoCard}>
             <div className={styles.infoHeader}>
-              <span className={styles.infoBadge}>REM</span>
               <h3>Important Reminders</h3>
             </div>
             <ul className={styles.checkList}>
@@ -171,7 +175,6 @@ export function InfoCards() {
 
           <article className={styles.infoCard}>
             <div className={styles.infoHeader}>
-              <span className={`${styles.infoBadge} ${styles.dangerBadge}`}>BAN</span>
               <h3>Banned MTV List</h3>
             </div>
             <p>
@@ -185,7 +188,6 @@ export function InfoCards() {
 
           <article className={styles.infoCard}>
             <div className={styles.infoHeader}>
-              <span className={`${styles.infoBadge} ${styles.helpBadge}`}>FAQ</span>
               <h3>Need Help?</h3>
             </div>
             <p>

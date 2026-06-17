@@ -30,7 +30,9 @@ export default function Step1Applicant({
   lockApplicationType = false,
 }) {
   const applicationTypeOptions = (
-    lockApplicationType ? ["Amendment"] : APPLICATION_TYPES
+    lockApplicationType
+      ? [data.applicationType || "Amendment"]
+      : APPLICATION_TYPES
   ).map((type) => ({
     value: type,
     label: type,

@@ -834,6 +834,7 @@
 
 .panelHeader button svg,
 .openFolder svg,
+.advancedButton svg,
 .exportButton svg {
   flex: 0 0 auto;
   width: 15px;
@@ -1642,6 +1643,10 @@
 .filterGrid label {
   display: grid;
   gap: 6px;
+}
+
+.fullWidthField {
+  grid-column: 1 / -1;
 }
 
 .filterGrid label > span,
