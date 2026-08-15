@@ -314,9 +314,9 @@ export async function createGHPAppointment(data) {
   const requestedAt = new Date().toISOString();
   await appendRow("GHP_Appointments", [
     appointmentId, requestedAt, data.name, data.email, data.contact || "",
-    data.seminarDate || "", data.remarks || "", "Scheduled", data.seminarDate || "", "", "", "", "", "", "", "", "", "", "", "", "",
+    data.seminarDate || "", data.remarks || "", "Scheduled", data.seminarDate || "", data.seminarTime || "", "", "", "", "", "", "", "", "", "", "", "",
   ]);
-  return { ...data, appointmentId, requestedAt, preferredDate: data.seminarDate, seminar_date: data.seminarDate, status: "Scheduled" };
+  return { ...data, appointmentId, requestedAt, preferredDate: data.seminarDate, seminar_date: data.seminarDate, seminar_time: data.seminarTime, status: "Scheduled" };
 }
 
 export async function getGHPAppointments() {

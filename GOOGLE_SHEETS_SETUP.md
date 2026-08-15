@@ -4,7 +4,7 @@ This guide includes legacy quiz setup. The current GHP seminar flow uses the `GH
 
 ## Current GHP seminar workflow
 
-Clients select an available seminar schedule in the portal. Each schedule has 30 seats. After the seminar, record each examination result in a `Manual Entries` tab using these headers:
+Clients select an available seminar date and one of four sessions in the portal. Each session has 30 seats. After the seminar, record each examination result in a `Manual Entries` tab using these headers:
 
 | appointment_id | email | result | score | certificate_number | exam_date | notification_sent_at |
 | --- | --- | --- | --- | --- | --- | --- |

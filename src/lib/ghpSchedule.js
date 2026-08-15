@@ -1,5 +1,11 @@
 const DEFAULT_FIRST_SEMINAR_DATE = "2026-08-20";
 const SEMINAR_CAPACITY = 30;
+const SEMINAR_SESSIONS = [
+  { id: "08:00-10:00", label: "8:00 AM – 10:00 AM" },
+  { id: "10:00-12:00", label: "10:00 AM – 12:00 PM" },
+  { id: "13:00-15:00", label: "1:00 PM – 3:00 PM" },
+  { id: "15:00-17:00", label: "3:00 PM – 5:00 PM" },
+];
 
 function dateOnlyInManila() {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -43,4 +49,4 @@ export function isGHPSeminarDate(date) {
   return getGHPSeminarDates(53).includes(date);
 }
 
-export { SEMINAR_CAPACITY };
+export { SEMINAR_CAPACITY, SEMINAR_SESSIONS };
