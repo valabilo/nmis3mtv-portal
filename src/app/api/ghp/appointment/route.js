@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { createGHPAppointment, getGHPAppointments } from "@/lib/googleSheets";
+import { createGHPAppointment, getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
 import { getGHPSeminarDates, isGHPSeminarDate, SEMINAR_CAPACITY } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
+import { sendGHPSeminarNotification } from "@/lib/sendMail";
 
 export const runtime = "nodejs";
 
@@ -38,7 +39,21 @@ export async function POST(request) {
     const appointment = await createGHPAppointment({
       appointmentId: uuidv4(), name, email, contact, seminarDate, remarks: clean(body.remarks),
     });
-    return NextResponse.json({ success: true, appointment }, { status: 201 });
+    try {
+      await sendGHPSeminarNotification(appointment);
+      const savedAppointment = await updateGHPAppointment(appointment.appointmentId, {
+        notification_sent_at: new Date().toISOString(),
+      });
+      return NextResponse.json({ success: true, appointment: savedAppointment, emailSent: true }, { status: 201 });
+    } catch (emailError) {
+      console.error("GHP booking confirmation email failed:", emailError);
+      return NextResponse.json({
+        success: true,
+        appointment,
+        emailSent: false,
+        warning: "Your booking was saved, but the confirmation email could not be sent. Please contact NMIS RTOC III.",
+      }, { status: 201 });
+    }
   } catch (error) {
     console.error("GHP appointment error:", error);
     return NextResponse.json({ success: false, error: error.message || "Unable to save your appointment." }, { status: 500 });
