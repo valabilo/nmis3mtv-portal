@@ -22,14 +22,16 @@ function isFriday(date) {
   return new Date(`${date}T00:00:00Z`).getUTCDay() === 5;
 }
 
-/** The first seminar is a one-off Thursday; every later seminar is Friday. */
+/** The first seminar is a one-off Thursday; Friday resumes the following week. */
 export function getGHPSeminarDates(count = 12) {
   const firstDate = process.env.GHP_FIRST_SEMINAR_DATE || DEFAULT_FIRST_SEMINAR_DATE;
   const today = dateOnlyInManila();
   const dates = [];
 
   if (firstDate >= today) dates.push(firstDate);
-  let cursor = addDays(firstDate, 1);
+  // Start one full week later so the Friday in the Thursday seminar's week
+  // is not offered as a second schedule.
+  let cursor = addDays(firstDate, 7);
   while (dates.length < count) {
     if (cursor >= today && isFriday(cursor)) dates.push(cursor);
     cursor = addDays(cursor, 1);

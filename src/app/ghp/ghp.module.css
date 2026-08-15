@@ -117,13 +117,20 @@
 .fullWidth { grid-column: 1 / -1; }
 .appointmentForm button { justify-self: start; }
 .success { background: var(--green-pale); border: 1px solid rgba(26, 92, 50, .2); border-radius: 7px; color: var(--green-deep); line-height: 1.6; padding: 18px; }
-.schedulePicker { grid-column: 1 / -1; border: 0; margin: 0; padding: 0; display: grid; gap: 10px; }
+.schedulePicker { grid-column: 1 / -1; border: 0; margin: 0; min-width: 0; padding: 0; }
 .schedulePicker legend { color: var(--gray-700); font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
-.schedule, .scheduleFull { align-items: center; border: 1px solid var(--gray-200); border-radius: 7px; cursor: pointer; display: flex !important; gap: 10px; padding: 12px; }
-.schedule:has(input:checked) { background: var(--green-pale); border-color: var(--green); }
-.scheduleFull { cursor: not-allowed; opacity: .58; }
-.schedule span, .scheduleFull span { display: grid; gap: 3px; }
-.schedule small, .scheduleFull small { color: var(--gray-600); font-weight: 400; }
+.tableWrap { border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden; }
+.scheduleTable { border-collapse: collapse; width: 100%; }
+.scheduleTable th { background: var(--green-deep); color: #fff; font-size: .78rem; letter-spacing: .25px; text-align: left; text-transform: uppercase; }
+.scheduleTable th, .scheduleTable td { border-bottom: 1px solid var(--gray-200); padding: 13px 14px; vertical-align: middle; }
+.scheduleTable tbody tr:last-child td { border-bottom: 0; }
+.scheduleTable tbody tr:nth-child(even) { background: #fafcfb; }
+.scheduleTable tbody tr:hover, .selectedSchedule { background: var(--green-pale) !important; }
+.seatsOpen { color: var(--green); }
+.seatsFull { color: #a12622; }
+.selectSchedule { align-items: center; color: var(--green-deep); cursor: pointer; display: inline-flex !important; font-weight: 700; gap: 7px; white-space: nowrap; }
+.selectSchedule input { accent-color: var(--green); height: 16px; margin: 0; padding: 0; width: 16px; }
+.selectSchedule:has(input:disabled) { color: var(--gray-500); cursor: not-allowed; }
 
 @media (max-width: 760px) {
   .overview,
@@ -146,4 +153,14 @@
   .summaryGrid {
     grid-template-columns: 1fr;
   }
+
+  .appointmentCard { padding: 20px; }
+  .tableWrap { border: 0; border-radius: 0; overflow: visible; }
+  .scheduleTable, .scheduleTable tbody, .scheduleTable tr, .scheduleTable td { display: block; width: 100%; }
+  .scheduleTable thead { border: 0; clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
+  .scheduleTable tr { border: 1px solid var(--gray-200); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .scheduleTable td { align-items: center; border-bottom: 1px solid var(--gray-100) !important; display: flex; justify-content: space-between; padding: 10px 12px; text-align: right; }
+  .scheduleTable td:first-child { color: var(--green-deep); font-weight: 700; }
+  .scheduleTable td::before { color: var(--gray-600); content: attr(data-label); font-size: .78rem; font-weight: 700; margin-right: 12px; text-align: left; }
+  .scheduleTable td:last-child { border-bottom: 0 !important; }
 }
