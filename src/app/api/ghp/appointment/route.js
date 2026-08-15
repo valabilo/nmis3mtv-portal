@@ -14,8 +14,8 @@ export async function POST(request) {
     const email = clean(body.email).toLowerCase();
     const contact = clean(body.contact, 80);
     const preferredDate = clean(body.preferredDate, 20);
-    if (!validateName(name) || !validateEmail(email)) {
-      return NextResponse.json({ success: false, error: "Please provide a valid full name and email address." }, { status: 400 });
+    if (!validateName(name) || !validateEmail(email) || !/^\d{4}-\d{2}-\d{2}$/.test(preferredDate)) {
+      return NextResponse.json({ success: false, error: "Please provide a valid full name, email address, and preferred appointment date." }, { status: 400 });
     }
     const appointment = await createGHPAppointment({
       appointmentId: uuidv4(), name, email, contact, preferredDate, remarks: clean(body.remarks),
