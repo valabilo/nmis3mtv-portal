@@ -569,6 +569,20 @@ export async function sendGHPCertificate(record, pdfBuffer) {
   });
 }
 
+export async function sendGHPExamResult(record) {
+  const transport = getTransporter();
+  const passed = String(record.exam_result || "").trim().toUpperCase() === "PASSED";
+  const subject = passed ? "GHP Examination Result: Passed" : "GHP Examination Result: Not Passed";
+  const result = passed ? "PASSED" : "NOT PASSED";
+  const nextStep = passed
+    ? "Your certificate will be prepared by NMIS and issued with the required manual signature. Please coordinate with the office for collection."
+    : "Please coordinate with NMIS RTOC III regarding the next available examination or seminar schedule.";
+  return transport.sendMail({
+    from: getDefaultSender(), to: formatMailAddress(record.name, record.email), subject,
+    html: `${EMAIL_CSS}<div class="email-shell" style="${shellStyle(600)}"><div class="email-header" style="${headerStyle}"><h1 class="email-title" style="${titleStyle}">GHP Examination Result</h1></div><div class="email-body" style="${bodyStyle}"><p>Dear <strong>${record.name}</strong>,</p><p>Your Good Hygienic Practices (GHP) examination result is:</p><p style="font-size:20px;font-weight:bold;color:${passed ? "#1a5c32" : "#b42318"};">${result}</p>${record.exam_score ? `<p><strong>Score:</strong> ${record.exam_score}</p>` : ""}${passed && record.certificate_number ? `<p><strong>Certificate Number:</strong> ${record.certificate_number}</p>` : ""}<p>${nextStep}</p><p>Best regards,<br/><strong>NMIS RTOC III</strong></p></div></div>`,
+  });
+}
+
 export async function sendVerificationResult(email, name, plate, status) {
   const transport = getTransporter();
 

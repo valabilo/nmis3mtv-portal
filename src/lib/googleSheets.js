@@ -302,6 +302,10 @@ const GHP_APPOINTMENT_HEADERS = [
   "certificate_number",
   "certificate_issued_at",
   "certificate_sent_at",
+  "exam_result",
+  "exam_score",
+  "exam_recorded_at",
+  "result_notification_sent_at",
 ];
 
 export async function createGHPAppointment(data) {
@@ -310,9 +314,9 @@ export async function createGHPAppointment(data) {
   const requestedAt = new Date().toISOString();
   await appendRow("GHP_Appointments", [
     appointmentId, requestedAt, data.name, data.email, data.contact || "",
-    data.preferredDate || "", data.remarks || "", "Pending", "", "", "", "", "", "", "", "",
+    data.seminarDate || "", data.remarks || "", "Scheduled", data.seminarDate || "", "", "", "", "", "", "", "", "", "", "", "", "",
   ]);
-  return { ...data, appointmentId, requestedAt, status: "Pending" };
+  return { ...data, appointmentId, requestedAt, preferredDate: data.seminarDate, seminar_date: data.seminarDate, status: "Scheduled" };
 }
 
 export async function getGHPAppointments() {
@@ -331,6 +335,40 @@ export async function updateGHPAppointment(appointmentId, updates) {
   await sheets.spreadsheets.values.update({
     spreadsheetId: getSpreadsheetId(),
     range: `${quoteSheetName("GHP_Appointments")}!A${record._rowNumber}:${columnLabel(headers.length)}${record._rowNumber}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [values] },
+  });
+  return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
+}
+
+const GHP_MANUAL_ENTRY_HEADERS = [
+  "appointment_id",
+  "email",
+  "result",
+  "score",
+  "certificate_number",
+  "exam_date",
+  "notification_sent_at",
+];
+
+export async function getGHPManualEntries() {
+  await ensureHeaders("Manual Entries", GHP_MANUAL_ENTRY_HEADERS);
+  const { rows } = await readSheetWithRowNumbers("Manual Entries");
+  return rows;
+}
+
+export async function markGHPManualEntryNotified(rowNumber) {
+  await ensureHeaders("Manual Entries", GHP_MANUAL_ENTRY_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("Manual Entries");
+  const record = rows.find((row) => row._rowNumber === rowNumber);
+  if (!record) throw new Error("Manual exam entry not found.");
+  const values = headers.map((header) =>
+    header === "notification_sent_at" ? new Date().toISOString() : (record[header] ?? ""),
+  );
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: getSpreadsheetId(),
+    range: `${quoteSheetName("Manual Entries")}!A${rowNumber}:${columnLabel(headers.length)}${rowNumber}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [values] },
   });

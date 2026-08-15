@@ -1,6 +1,16 @@
 # MTV Portal - Google Sheets & Apps Script Setup Guide
 
-This guide will help you migrate quiz data to Google Sheets and set up automatic certificate generation using Google Apps Script.
+This guide includes legacy quiz setup. The current GHP seminar flow uses the `GHP_Appointments` and `Manual Entries` tabs and does not automatically generate or email certificates.
+
+## Current GHP seminar workflow
+
+Clients select an available seminar schedule in the portal. Each schedule has 30 seats. After the seminar, record each examination result in a `Manual Entries` tab using these headers:
+
+| appointment_id | email | result | score | certificate_number | exam_date | notification_sent_at |
+| --- | --- | --- | --- | --- | --- | --- |
+| Appointment ID from GHP_Appointments (recommended) | Client email | PASSED or FAILED | Optional score | Required for a passing certificate | Optional | Filled automatically after email is sent |
+
+In the dashboard, open **GHP Seminars** and select **Send manual result emails**. This sends pass/fail notices only for rows without `notification_sent_at`. Passing certificates are printed by the administrator and signed manually; no certificate email is sent.
 
 ## Step 1: Set Up Google Sheets Structure
 

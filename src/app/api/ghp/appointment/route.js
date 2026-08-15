@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { createGHPAppointment } from "@/lib/googleSheets";
+import { createGHPAppointment, getGHPAppointments } from "@/lib/googleSheets";
+import { getGHPSeminarDates, isGHPSeminarDate, SEMINAR_CAPACITY } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
 
 export const runtime = "nodejs";
 
 const clean = (value, limit = 300) => String(value || "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, limit);
+
+export async function GET() {
+  try {
+    const appointments = await getGHPAppointments();
+    const schedules = getGHPSeminarDates().map((date) => {
+      const booked = appointments.filter((item) => item.seminar_date === date && !["Cancelled", "Failed"].includes(item.status)).length;
+      return { date, capacity: SEMINAR_CAPACITY, booked, available: Math.max(SEMINAR_CAPACITY - booked, 0) };
+    });
+    return NextResponse.json({ success: true, schedules });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message || "Unable to load seminar availability." }, { status: 500 });
+  }
+}
 
 export async function POST(request) {
   try {
@@ -13,12 +27,16 @@ export async function POST(request) {
     const name = clean(body.name);
     const email = clean(body.email).toLowerCase();
     const contact = clean(body.contact, 80);
-    const preferredDate = clean(body.preferredDate, 20);
-    if (!validateName(name) || !validateEmail(email) || !/^\d{4}-\d{2}-\d{2}$/.test(preferredDate)) {
-      return NextResponse.json({ success: false, error: "Please provide a valid full name, email address, and preferred appointment date." }, { status: 400 });
+    const seminarDate = clean(body.seminarDate, 20);
+    if (!validateName(name) || !validateEmail(email) || !/^\d{4}-\d{2}-\d{2}$/.test(seminarDate)) {
+      return NextResponse.json({ success: false, error: "Please provide a valid full name, email address, and seminar schedule." }, { status: 400 });
     }
+    if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
+    const appointments = await getGHPAppointments();
+    const booked = appointments.filter((item) => item.seminar_date === seminarDate && !["Cancelled", "Failed"].includes(item.status)).length;
+    if (booked >= SEMINAR_CAPACITY) return NextResponse.json({ success: false, error: "That seminar is already full. Please choose another schedule." }, { status: 409 });
     const appointment = await createGHPAppointment({
-      appointmentId: uuidv4(), name, email, contact, preferredDate, remarks: clean(body.remarks),
+      appointmentId: uuidv4(), name, email, contact, seminarDate, remarks: clean(body.remarks),
     });
     return NextResponse.json({ success: true, appointment }, { status: 201 });
   } catch (error) {

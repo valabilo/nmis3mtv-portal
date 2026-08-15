@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
-import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
+import { getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
-import { sendGHPCertificate, sendGHPSeminarNotification } from "@/lib/sendMail";
-import { createGHPCertificatePdf } from "@/lib/ghpCertificate";
+import { sendGHPExamResult } from "@/lib/sendMail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
 const unauthorized = () => NextResponse.json({ success: false, error: "Dashboard login required." }, { status: 401 });
-const clean = (value, limit = 300) => String(value || "").trim().slice(0, limit);
+const clean = (value) => String(value || "").trim();
+const resultFor = (value) => {
+  const result = clean(value).toUpperCase();
+  if (["PASSED", "PASS"].includes(result)) return "PASSED";
+  if (["FAILED", "FAIL", "NOT PASSED"].includes(result)) return "FAILED";
+  return "";
+};
 
 export async function GET(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
@@ -25,33 +29,30 @@ export async function PATCH(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
   try {
     const body = await request.json();
-    const appointmentId = clean(body.appointmentId, 80);
-    if (!appointmentId) return NextResponse.json({ success: false, error: "Appointment ID is required." }, { status: 400 });
-    if (body.action === "schedule") {
-      const updates = {
-        status: "Scheduled", seminar_date: clean(body.seminarDate, 20), seminar_time: clean(body.seminarTime, 40),
-        seminar_venue: clean(body.seminarVenue), meeting_link: clean(body.meetingLink), notification_sent_at: new Date().toISOString(),
-      };
-      if (!updates.seminar_date || !updates.seminar_time || (!updates.seminar_venue && !updates.meeting_link)) {
-        return NextResponse.json({ success: false, error: "Date, time, and a venue or online link are required." }, { status: 400 });
-      }
-      const record = await updateGHPAppointment(appointmentId, updates);
-      await sendGHPSeminarNotification(record);
-      return NextResponse.json({ success: true, appointment: record, message: "Seminar schedule saved and email sent." });
-    }
-    if (body.action === "issue-certificate") {
-      const certificateNumber = clean(body.certificateNumber, 80) || `GHP-${new Date().getFullYear()}-${appointmentId.slice(0, 8).toUpperCase()}`;
-      const record = await updateGHPAppointment(appointmentId, {
-        status: "Completed", certificate_number: certificateNumber, certificate_issued_at: new Date().toISOString(),
+    if (body.action !== "sync-manual-results") return NextResponse.json({ success: false, error: "Unsupported GHP action." }, { status: 400 });
+    const [appointments, entries] = await Promise.all([getGHPAppointments(), getGHPManualEntries()]);
+    let notified = 0; let skipped = 0; const errors = [];
+    for (const entry of entries) {
+      const result = resultFor(entry.result || entry.status || entry.exam_result);
+      if (!result || clean(entry.notification_sent_at)) continue;
+      const email = clean(entry.email).toLowerCase(); const appointmentId = clean(entry.appointment_id);
+      const appointment = appointments.find((item) => appointmentId ? item.appointment_id === appointmentId : clean(item.email).toLowerCase() === email);
+      if (!appointment) { skipped += 1; errors.push(`No appointment found for ${appointmentId || email || `Manual Entries row ${entry._rowNumber}`}.`); continue; }
+      const record = await updateGHPAppointment(appointment.appointment_id, {
+        status: result === "PASSED" ? "Passed" : "Failed", exam_result: result,
+        exam_score: clean(entry.score || entry.exam_score), exam_recorded_at: clean(entry.exam_date) || new Date().toISOString(),
+        certificate_number: result === "PASSED" ? clean(entry.certificate_number || entry.cert_number) : "",
       });
-      const pdf = await createGHPCertificatePdf(record);
-      await sendGHPCertificate(record, pdf);
-      const finalRecord = await updateGHPAppointment(appointmentId, { certificate_sent_at: new Date().toISOString() });
-      return NextResponse.json({ success: true, appointment: finalRecord, message: "Certificate generated and emailed." });
+      try {
+        await sendGHPExamResult(record);
+        await markGHPManualEntryNotified(entry._rowNumber);
+        await updateGHPAppointment(appointment.appointment_id, { result_notification_sent_at: new Date().toISOString() });
+        notified += 1;
+      } catch (error) { errors.push(`${record.name}: ${error.message || "email could not be sent"}`); }
     }
-    return NextResponse.json({ success: false, error: "Unsupported GHP action." }, { status: 400 });
+    return NextResponse.json({ success: true, notified, skipped, message: notified ? `${notified} examination result email${notified === 1 ? "" : "s"} sent.` : "No new manual examination results to notify.", errors });
   } catch (error) {
-    console.error("GHP admin action error:", error);
-    return NextResponse.json({ success: false, error: error.message || "GHP appointment update failed." }, { status: 500 });
+    console.error("GHP manual result sync error:", error);
+    return NextResponse.json({ success: false, error: error.message || "GHP result sync failed." }, { status: 500 });
   }
 }
