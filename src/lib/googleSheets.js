@@ -285,6 +285,58 @@ export async function getGHPCompletions() {
   return readSheet("GHP_Completions");
 }
 
+const GHP_APPOINTMENT_HEADERS = [
+  "appointment_id",
+  "requested_at",
+  "name",
+  "email",
+  "contact",
+  "preferred_date",
+  "remarks",
+  "status",
+  "seminar_date",
+  "seminar_time",
+  "seminar_venue",
+  "meeting_link",
+  "notification_sent_at",
+  "certificate_number",
+  "certificate_issued_at",
+  "certificate_sent_at",
+];
+
+export async function createGHPAppointment(data) {
+  await ensureHeaders("GHP_Appointments", GHP_APPOINTMENT_HEADERS);
+  const appointmentId = data.appointmentId;
+  const requestedAt = new Date().toISOString();
+  await appendRow("GHP_Appointments", [
+    appointmentId, requestedAt, data.name, data.email, data.contact || "",
+    data.preferredDate || "", data.remarks || "", "Pending", "", "", "", "", "", "", "", "",
+  ]);
+  return { ...data, appointmentId, requestedAt, status: "Pending" };
+}
+
+export async function getGHPAppointments() {
+  await ensureHeaders("GHP_Appointments", GHP_APPOINTMENT_HEADERS);
+  const { rows } = await readSheetWithRowNumbers("GHP_Appointments");
+  return rows;
+}
+
+export async function updateGHPAppointment(appointmentId, updates) {
+  await ensureHeaders("GHP_Appointments", GHP_APPOINTMENT_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("GHP_Appointments");
+  const record = rows.find((row) => row.appointment_id === appointmentId);
+  if (!record) throw new Error("GHP appointment not found.");
+  const values = headers.map((header) => updates[header] ?? record[header] ?? "");
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: getSpreadsheetId(),
+    range: `${quoteSheetName("GHP_Appointments")}!A${record._rowNumber}:${columnLabel(headers.length)}${record._rowNumber}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [values] },
+  });
+  return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
+}
+
 export async function getCertificateIssuance() {
   return readSheet("Certificate Issuance");
 }

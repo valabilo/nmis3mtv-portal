@@ -23,6 +23,7 @@ import {
 } from "@heroicons/react/24/outline";
 import DataTable from "@/components/ui/DataTable";
 import StatusTag from "@/components/ui/StatusTag";
+import GHPAppointments from "@/components/dashboard/GHPAppointments";
 import { normalise } from "@/lib/utils";
 import styles from "./DashboardHub.module.css";
 
@@ -75,6 +76,7 @@ const TABS = [
     label: "Applications",
     icon: ClipboardDocumentListIcon,
   },
+  { id: "ghp", label: "GHP Seminars", icon: DocumentTextIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "banned", label: "Banned", icon: XCircleIcon },
   { id: "details", label: "Details", icon: DocumentTextIcon },
@@ -2294,6 +2296,8 @@ export default function DashboardHub() {
             </div>
           </section>
         )}
+
+        {activeTab === "ghp" && <GHPAppointments />}
 
         {activeTab === "accredited" && (
           <section className={styles.section}>
