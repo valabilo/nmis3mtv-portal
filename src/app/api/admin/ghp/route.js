@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, updateGHPAppointment } from "@/lib/googleSheets";
+import { getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, saveGHPManualEntry, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
 import { sendGHPExamResult } from "@/lib/sendMail";
 
@@ -54,5 +54,21 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("GHP manual result sync error:", error);
     return NextResponse.json({ success: false, error: error.message || "GHP result sync failed." }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  if (!requestHasDashboardSession(request)) return unauthorized();
+  try {
+    const body = await request.json();
+    const appointmentId = clean(body.appointmentId); const score = clean(body.score); const result = resultFor(body.result);
+    if (!appointmentId || !score || !result) return NextResponse.json({ success: false, error: "Enter an exam score and select Passed or Failed." }, { status: 400 });
+    const appointments = await getGHPAppointments();
+    const appointment = appointments.find((item) => item.appointment_id === appointmentId);
+    if (!appointment) return NextResponse.json({ success: false, error: "GHP appointment not found." }, { status: 404 });
+    const entry = await saveGHPManualEntry({ appointmentId, email: appointment.email, score, result });
+    return NextResponse.json({ success: true, entry });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message || "Unable to save the exam result." }, { status: 500 });
   }
 }

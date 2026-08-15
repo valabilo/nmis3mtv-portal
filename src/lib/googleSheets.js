@@ -357,6 +357,27 @@ export async function getGHPManualEntries() {
   return rows;
 }
 
+export async function saveGHPManualEntry(data) {
+  await ensureHeaders("Manual Entries", GHP_MANUAL_ENTRY_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("Manual Entries");
+  const record = rows.find((row) => row.appointment_id === data.appointmentId);
+  const values = headers.map((header) => ({
+    appointment_id: data.appointmentId,
+    email: data.email,
+    result: data.result,
+    score: data.score,
+    certificate_number: data.certificateNumber || "",
+    exam_date: data.examDate || new Date().toISOString().slice(0, 10),
+  }[header] ?? (record?.[header] ?? "")));
+  const sheets = getSheetsClient();
+  if (record) {
+    await sheets.spreadsheets.values.update({ spreadsheetId: getSpreadsheetId(), range: `${quoteSheetName("Manual Entries")}!A${record._rowNumber}:${columnLabel(headers.length)}${record._rowNumber}`, valueInputOption: "USER_ENTERED", requestBody: { values: [values] } });
+  } else {
+    await appendRow("Manual Entries", values);
+  }
+  return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
+}
+
 export async function markGHPManualEntryNotified(rowNumber) {
   await ensureHeaders("Manual Entries", GHP_MANUAL_ENTRY_HEADERS);
   const { headers, rows } = await readSheetWithRowNumbers("Manual Entries");
