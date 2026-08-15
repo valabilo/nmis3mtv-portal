@@ -115,7 +115,7 @@
 .appointmentForm label { display: grid; gap: 7px; color: var(--gray-700); font-size: .9rem; font-weight: 700; }
 .appointmentForm input, .appointmentForm textarea { border: 1px solid var(--gray-200); border-radius: 6px; padding: 10px 12px; font: inherit; font-weight: 400; }
 .fullWidth { grid-column: 1 / -1; }
-.appointmentForm button { justify-self: start; }
+.appointmentForm > button { justify-self: start; }
 .success { background: var(--green-pale); border: 1px solid rgba(26, 92, 50, .2); border-radius: 7px; color: var(--green-deep); line-height: 1.6; padding: 18px; }
 .schedulePicker { grid-column: 1 / -1; border: 0; margin: 0; min-width: 0; padding: 0; }
 .schedulePicker legend { color: var(--gray-700); font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
@@ -125,7 +125,7 @@
 .calendarHeader button:disabled { color:var(--gray-300); cursor:not-allowed; }
 .calendar { border:1px solid var(--gray-200); border-radius:8px; display:grid; grid-template-columns:repeat(7, 1fr); overflow:hidden; }
 .weekday { background:var(--green-deep); color:#fff; font-size:.72rem; font-weight:700; padding:9px 4px; text-align:center; text-transform:uppercase; }
-.day { background:#fff; border:0; border-bottom:1px solid var(--gray-100); border-right:1px solid var(--gray-100); color:var(--gray-500); cursor:default; display:grid; font:inherit; gap:3px; justify-items:center; min-height:67px; padding:8px 3px; }
+.day { align-self:stretch; background:#fff; border:0; border-bottom:1px solid var(--gray-100); border-right:1px solid var(--gray-100); color:var(--gray-500); cursor:default; display:grid; font:inherit; gap:3px; justify-items:center; justify-self:stretch; min-height:67px; padding:8px 3px; width:100%; }
 .day:nth-child(7n) { border-right:0; }.day span { font-weight:700; }.day small { font-size:.67rem; min-height:13px; }
 .day.availableDay { background:var(--green-pale); color:var(--green-deep); cursor:pointer; outline:2px solid transparent; outline-offset:-2px; }
 .day.availableDay:hover, .day.availableDay:focus-visible { background:#dcefe1; outline-color:var(--gold); }
@@ -177,4 +177,14 @@
   .scheduleTable td:first-child { color: var(--green-deep); font-weight: 700; }
   .scheduleTable td::before { color: var(--gray-600); content: attr(data-label); font-size: .78rem; font-weight: 700; margin-right: 12px; text-align: left; }
   .scheduleTable td:last-child { border-bottom: 0 !important; }
+}
+
+@media (max-width: 380px) {
+  .appointmentCard { padding:16px; }
+  .weekday { font-size:.54rem; padding:8px 1px; }
+  .day { font-size:.86rem; min-height:50px; padding:5px 1px; }
+  .day small { font-size:.52rem; }
+  .selectedBooking { grid-template-columns:1fr; }
+  .selectedBooking button { grid-column:1; grid-row:auto; justify-self:start; padding:0; }
+  .session { align-items:flex-start; gap:10px; padding:12px; }
 }
