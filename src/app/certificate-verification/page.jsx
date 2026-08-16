@@ -73,7 +73,7 @@ function CertificateVerificationContent() {
 
       <div className={styles.page}>
         <div className="container">
-          <section className={styles.overview}>
+          {!searched && <section className={styles.overview}>
             <div>
               <span className={styles.kicker}>Certificate Lookup</span>
               <h2>Confirm whether a GHP certificate is recorded and still valid.</h2>
@@ -97,9 +97,9 @@ function CertificateVerificationContent() {
                 <strong>Valid or expired</strong>
               </div>
             </div>
-          </section>
+          </section>}
 
-          <div className={styles.searchCard}>
+          {!searched && <div className={styles.searchCard}>
             <h2>Verify Certificate</h2>
             <p>Enter the control number printed on the certificate or scan its QR code.</p>
             <div className={styles.searchRow}>
@@ -115,7 +115,7 @@ function CertificateVerificationContent() {
                 {loading ? 'Verifying...' : 'Verify'}
               </button>
             </div>
-          </div>
+          </div>}
 
           {error && (
             <div className={styles.invalidCard}>

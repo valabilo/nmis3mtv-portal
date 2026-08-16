@@ -5,6 +5,12 @@ import { downloadDriveFile } from "@/lib/driveService";
 
 export const runtime = "nodejs";
 
+const safeFilePart = (value) => String(value || "")
+  .trim()
+  .replace(/[^a-z0-9]+/gi, "_")
+  .replace(/^_+|_+$/g, "")
+  .slice(0, 100);
+
 export async function GET(request) {
   if (!requestHasDashboardSession(request)) return NextResponse.json({ success: false, error: "Dashboard login required." }, { status: 401 });
   try {
@@ -18,7 +24,8 @@ export async function GET(request) {
     if (!fileId) return NextResponse.json({ success: false, error: "Certificate generation did not finish. Check Apps Script Executions for the sendCertificates() error, then run it again." }, { status: 409 });
     const pdf = await downloadDriveFile(fileId);
     const disposition = request.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline";
-    return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `${disposition}; filename="${record.certificate_number}.pdf"` } });
+    const filename = `NMIS_GHP_Certificate_${safeFilePart(record.certificate_number)}_${safeFilePart(record.name)}.pdf`;
+    return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `${disposition}; filename="${filename}"` } });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message || "Unable to download the certificate." }, { status: 500 });
   }

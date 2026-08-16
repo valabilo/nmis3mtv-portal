@@ -20,6 +20,8 @@ To use the Google Slides certificate template, replace the bound Apps Script pro
 
 The same bound Apps Script also reserves seminar seats under a shared lock, so the final available seat is assigned only to the first completed booking request. In Apps Script **Project Settings**, add a script property named `GHP_BOOKING_SECRET` with a long random value. Then deploy the project as a **Web app** (execute as the spreadsheet owner; access: anyone), copy its `/exec` URL to `GHP_BOOKING_WEB_APP_URL`, and put the same secret in `GHP_BOOKING_SECRET` in the portal's Vercel environment variables. Redeploy the portal after saving those variables.
 
+The reservation endpoint also rejects a booking when the same email address has a passing certificate in `Certificate Issuance` whose `expiry_date` is today or later. This prevents duplicate bookings during the certificate's one-year validity period.
+
 ## Step 1: Set Up Google Sheets Structure
 
 ### 1.1 Create New Tabs in Your Google Sheet

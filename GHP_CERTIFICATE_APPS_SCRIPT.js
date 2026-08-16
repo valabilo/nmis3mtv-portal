@@ -108,6 +108,9 @@ function reserveGhpAppointment_(payload) {
     ["appointment_id", "name", "email", "contact", "remarks", "status", "seminar_date", "seminar_time"].forEach(function(header) {
       if (headers[header] === undefined) throw new Error("GHP_Appointments is missing the " + header + " column.");
     });
+    if (hasActiveCertificateForEmail_(payload.email)) {
+      throw new Error("You already have an active GHP certificate. You may book another seminar after your current certificate expires.");
+    }
     var booked = 0;
     for (var i = 1; i < rows.length; i++) {
       if (String(rows[i][headers.seminar_date] || "") === payload.seminarDate && String(rows[i][headers.seminar_time] || "") === payload.seminarTime && ["Cancelled", "Failed"].indexOf(String(rows[i][headers.status] || "")) === -1) booked++;
@@ -133,6 +136,26 @@ function reserveGhpAppointment_(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// A certificate is active through its expiry date. This check runs while the
+// booking lock is held, so every booking path consistently applies the rule.
+function hasActiveCertificateForEmail_(email) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
+  if (!sheet || sheet.getLastRow() < 2) return false;
+  var rows = sheet.getDataRange().getValues();
+  var headers = headerMap_(rows[0] || []);
+  if (headers.email === undefined || headers.expiry_date === undefined) return false;
+  var candidate = String(email || "").trim().toLowerCase();
+  if (!candidate) return false;
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][headers.email] || "").trim().toLowerCase() !== candidate) continue;
+    var status = String(rows[i][headers.status] || "").trim().toUpperCase();
+    var expiry = new Date(rows[i][headers.expiry_date]); expiry.setHours(0, 0, 0, 0);
+    if (status === "PASSED" && !isNaN(expiry.getTime()) && expiry >= today) return true;
+  }
+  return false;
 }
 
 // Saves the score, assigns the next sequential control number, and creates the
