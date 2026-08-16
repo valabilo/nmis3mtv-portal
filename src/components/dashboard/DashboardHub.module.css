@@ -8,6 +8,7 @@
   --dash-faint: #9ca3af;
   --dash-accent: #1f6f46;
   --dash-accent-soft: #edf7f1;
+  --dash-green-pale: #e8f7ef;
   --dash-danger: #b42318;
   --dash-warning: #986f0b;
   --dash-blue: #245b8f;
@@ -380,7 +381,7 @@
 }
 
 .topbarMeta .notificationPanelHeader button {
-  min-height: auto;
+  min-height: 0;
   border: 0;
   background: transparent;
   color: var(--dash-accent);
@@ -1236,7 +1237,7 @@
 }
 
 .reviewDocumentActive {
-  background: var(--green-pale);
+  background: var(--dash-green-pale);
   border-color: rgba(31, 111, 70, .34);
   color: var(--dash-green-deep);
 }
@@ -1708,7 +1709,7 @@
 
 .inlineCheckbox input {
   flex: 0 0 auto;
-  min-height: auto;
+  min-height: 0;
   width: auto;
 }
 
@@ -1926,7 +1927,7 @@
 
   .reviewPanel {
     position: static;
-    min-height: auto;
+    min-height: 0;
     grid-template-rows: auto auto minmax(520px, 70vh);
   }
 }
