@@ -80,6 +80,25 @@ function sendCertificates() {
   }
 }
 
+// Run this manually once for an already-generated certificate that needs its QR code rebuilt.
+function regenerateCertificate(controlNo) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
+  if (!sheet) throw new Error("Missing sheet: " + CONFIG.issuanceSheetName);
+  ensureIssuanceHeaders_(sheet);
+  var rows = sheet.getDataRange().getValues();
+  var headers = headerMap_(rows[0]);
+  var id = String(controlNo || "").trim().toUpperCase();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][headers.control_no] || "").trim().toUpperCase() !== id) continue;
+    var oldFileId = rows[i][headers.pdf_file_id];
+    var file = createCertificatePdf_(id, String(rows[i][headers.name] || "").trim(), rows[i][headers.exam_date]);
+    sheet.getRange(i + 1, headers.pdf_file_id + 1).setValue(file.getId());
+    if (oldFileId) { try { DriveApp.getFileById(oldFileId).setTrashed(true); } catch (error) {} }
+    return file.getId();
+  }
+  throw new Error("Certificate not found: " + id);
+}
+
 function createCertificatePdf_(controlNo, name, examDate) {
   var expiry = new Date(examDate); expiry.setFullYear(expiry.getFullYear() + 1);
   var verifyUrl = CONFIG.verifyUrl + "?id=" + encodeURIComponent(controlNo);
@@ -89,16 +108,20 @@ function createCertificatePdf_(controlNo, name, examDate) {
   presentation.replaceAllText("{{Exam Date}}", formatDateSafe_(examDate));
   presentation.replaceAllText("{{Expiry Date}}", formatDateSafe_(expiry));
   presentation.replaceAllText("{{Control Number}}", controlNo);
+  var qrBlob = getQrBlob_(verifyUrl);
+  var qrInserted = false;
   presentation.getSlides().forEach(function(slide) {
     slide.getShapes().forEach(function(shape) {
       try {
         if (shape.getText().asString().trim() !== "{{QR_URL}}") return;
         var left = shape.getLeft(), top = shape.getTop(), width = shape.getWidth(), height = shape.getHeight();
+        slide.insertImage(qrBlob, left, top, width, height);
         shape.remove();
-        slide.insertImage(UrlFetchApp.fetch(qrUrl_(verifyUrl)).getBlob(), left, top, width, height);
-      } catch (error) {}
+        qrInserted = true;
+      } catch (error) { Logger.log("QR placeholder could not be replaced: " + error.message); }
     });
   });
+  if (!qrInserted) throw new Error("The certificate template is missing a text box containing {{QR_URL}}.");
   presentation.saveAndClose();
   var pdf = DriveApp.getFileById(copy.getId()).getAs("application/pdf");
   var pdfFile = DriveApp.getFolderById(CONFIG.noEmailFolderId).createFile(pdf);
@@ -130,6 +153,16 @@ function headerMap_(headers) {
 
 function qrUrl_(verifyUrl) {
   return "https://quickchart.io/qr?size=300&type=dots&margin=1&errorCorrectionLevel=H&centerImageUrl=" + encodeURIComponent(CONFIG.nmisLogoUrl) + "&centerImageSizeRatio=0.3&text=" + encodeURIComponent(verifyUrl);
+}
+
+function getQrBlob_(verifyUrl) {
+  var response = UrlFetchApp.fetch(qrUrl_(verifyUrl), { muteHttpExceptions: true });
+  if (response.getResponseCode() !== 200) {
+    throw new Error("QR code service returned HTTP " + response.getResponseCode() + ".");
+  }
+  var blob = response.getBlob();
+  if (!blob || !blob.getBytes().length) throw new Error("QR code service returned an empty image.");
+  return blob.setName("certificate-qr.png");
 }
 
 function formatDateSafe_(value) {
