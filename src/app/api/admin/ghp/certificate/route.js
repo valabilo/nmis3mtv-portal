@@ -13,8 +13,9 @@ export async function GET(request) {
     if (!record?.certificate_number || record.exam_result !== "PASSED") return NextResponse.json({ success: false, error: "A passing score is required before generating a certificate." }, { status: 404 });
     const certificates = await getCertificateIssuance();
     const certificate = certificates.find((item) => String(item.control_no || item.certificate_number || "").trim().toUpperCase() === String(record.certificate_number).trim().toUpperCase());
+    if (!certificate) return NextResponse.json({ success: false, error: "Certificate generation has not started yet. In the bound Apps Script, run sendCertificates() or make sure setup() has created its five-minute trigger." }, { status: 409 });
     const fileId = certificate?.pdf_file_id || certificate?.certificate_pdf_file_id || certificate?.drive_file_id;
-    if (!fileId) return NextResponse.json({ success: false, error: "The certificate is being generated. Please try again shortly." }, { status: 409 });
+    if (!fileId) return NextResponse.json({ success: false, error: "Certificate generation did not finish. Check Apps Script Executions for the sendCertificates() error, then run it again." }, { status: 409 });
     const pdf = await downloadDriveFile(fileId);
     const disposition = request.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline";
     return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `${disposition}; filename="${record.certificate_number}.pdf"` } });
