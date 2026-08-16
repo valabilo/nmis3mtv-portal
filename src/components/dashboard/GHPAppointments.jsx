@@ -121,6 +121,10 @@ export default function GHPAppointments() {
     finally { setDownloading(false); }
   }
 
+  function toggleCertificateSelection(id) {
+    setSelected((all) => all.includes(id) ? all.filter((selectedId) => selectedId !== id) : [...all, id]);
+  }
+
   function openMenuAction(event, callback) {
     event.currentTarget.closest("details")?.removeAttribute("open");
     callback();
@@ -142,8 +146,8 @@ export default function GHPAppointments() {
           {attendees.map((item) => {
             const scoreEdit = editing === item.appointment_id;
             const nameEdit = editing === `name-${item.appointment_id}`;
-            return <tr key={item.appointment_id}>
-              <td>{passed(item) && item.certificate_ready ? <input type="checkbox" disabled={disabled} checked={selected.includes(item.appointment_id)} onChange={() => setSelected((all) => all.includes(item.appointment_id) ? all.filter((id) => id !== item.appointment_id) : [...all, item.appointment_id])} /> : "—"}</td>
+            return <tr key={item.appointment_id} onDoubleClick={() => { if (!disabled && passed(item) && item.certificate_ready) toggleCertificateSelection(item.appointment_id); }}>
+              <td>{passed(item) && item.certificate_ready ? <input type="checkbox" disabled={disabled} checked={selected.includes(item.appointment_id)} onChange={() => toggleCertificateSelection(item.appointment_id)} /> : "—"}</td>
               <td>{nameEdit ? <div className={styles.nameField}><input value={name} onChange={(event) => setName(event.target.value)} autoFocus /><button className={styles.saveButton} disabled={disabled} onClick={() => rename(item)}>Save name</button><button className={styles.cancelButton} disabled={disabled} onClick={() => setEditing("")}>Cancel</button></div> : <><strong>{item.name}</strong><span>{item.email}</span></>}</td>
               <td>{item.seminar_time || "—"}</td>
               <td>{scoreEdit ? <div className={styles.scoreField}><input className={styles.scoreInput} type="number" min="1" max="10" step="1" value={scores[item.appointment_id] ?? ""} onChange={(event) => setScores((all) => ({ ...all, [item.appointment_id]: event.target.value }))} autoFocus /><button className={styles.saveButton} disabled={disabled} onClick={() => saveScore(item)}>Save</button><button className={styles.cancelButton} disabled={disabled} onClick={() => setEditing("")}>Cancel</button></div> : item.exam_score || "—"}</td>

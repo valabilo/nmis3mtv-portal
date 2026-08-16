@@ -6,6 +6,7 @@ import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
   BellIcon,
+  ChartBarIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
@@ -65,6 +66,7 @@ const ACCREDITED_STATUSES = [
 const BANNED_STATUSES = ["Banned", "Suspended", "Revoked"];
 
 const TABS = [
+  { id: "analytics", label: "Analytics", icon: ChartBarIcon },
   { id: "ghp", label: "GHP Seminars", icon: DocumentTextIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "banned", label: "Banned", icon: XCircleIcon },
@@ -924,7 +926,7 @@ export default function DashboardHub() {
   const knownApplicationsRef = useRef(new Map());
   const knownApplicationsReadyRef = useRef(false);
   const notificationTimersRef = useRef(new Map());
-  const [activeTab, setActiveTab] = useState("ghp");
+  const [activeTab, setActiveTab] = useState("analytics");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [applications, setApplications] = useState([]);
   const [accreditedRecords, setAccreditedRecords] = useState([]);
@@ -1325,17 +1327,12 @@ export default function DashboardHub() {
   }, [applications]);
 
   const analyticsYears = useMemo(() => {
-    const years = [
-      ...applications.map((application) =>
-        yearFromValue(application.timestamp),
-      ),
-      ...accreditedRecords.map((record) =>
-        yearFromValue(record.approvedAt || record.dateIssued),
-      ),
-    ].filter(Boolean);
+    const years = accreditedRecords.map((record) =>
+      yearFromValue(record.approvedAt || record.dateIssued),
+    ).filter(Boolean);
 
     return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
-  }, [accreditedRecords, applications]);
+  }, [accreditedRecords]);
 
   useEffect(() => {
     if (
@@ -1350,11 +1347,9 @@ export default function DashboardHub() {
 
   const analytics = useMemo(() => {
     const selectedYear = analyticsYear === "All" ? "" : analyticsYear;
+    // Retained for the commented-out application pipeline chart below.
     const yearApplications = selectedYear
-      ? applications.filter(
-          (application) =>
-            yearFromValue(application.timestamp) === selectedYear,
-        )
+      ? applications.filter((application) => yearFromValue(application.timestamp) === selectedYear)
       : applications;
     const yearAccredited = selectedYear
       ? accreditedRecords.filter(
@@ -1400,27 +1395,18 @@ export default function DashboardHub() {
       share: `${percentage(count, yearAccredited.length)}%`,
     })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
-    const statusBreakdown = ["Application Received", ...STATUSES].map(
-      (status) => ({
-        label: status,
-        count: yearApplications.filter(
-          (application) => application.status === status,
-        ).length,
-        share: `${percentage(
-          yearApplications.filter(
-            (application) => application.status === status,
-          ).length,
-          yearApplications.length,
-        )}%`,
-      }),
-    );
+    // Future analytics: application pipeline data. It is intentionally not
+    // rendered in the current accreditation-focused dashboard.
+    const statusBreakdown = ["Application Received", ...STATUSES].map((status) => {
+      const count = yearApplications.filter((application) => application.status === status).length;
+      return { label: status, count, share: `${percentage(count, yearApplications.length)}%` };
+    });
 
     return {
       monthlyAccredited,
       yearlyAccredited,
       establishmentTypes,
       statusBreakdown,
-      selectedApplications: yearApplications.length,
       selectedAccredited: yearAccredited.length,
     };
   }, [accreditedRecords, analyticsYear, applications]);
@@ -1952,10 +1938,9 @@ export default function DashboardHub() {
         <header className={styles.topbar}>
           <div>
             <span className={styles.kicker}>Private Link</span>
-            <h1>MTV Applications Dashboard</h1>
+            <h1>NMIS Operations Dashboard</h1>
           </div>
           <div className={styles.topbarMeta}>
-            <span>{applications.length} applications</span>
             <div className={styles.notificationBellWrap}>
               <button
                 type="button"
@@ -2125,9 +2110,8 @@ export default function DashboardHub() {
             <div className={styles.analyticsHeader}>
               <div>
                 <span className={styles.kicker}>Analytics</span>
-                <h2>MTV Application Trends</h2>
+                <h2>Accreditation Analytics</h2>
                 <p>
-                  {analytics.selectedApplications} applications and{" "}
                   {analytics.selectedAccredited} accredited MTV records in view.
                 </p>
               </div>
@@ -2141,6 +2125,8 @@ export default function DashboardHub() {
             </div>
 
             <div className={styles.analyticsGrid}>
+              {/* Future use: restore this application-pipeline chart when
+                  application analytics are needed on the dashboard again.
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <div>
@@ -2183,6 +2169,7 @@ export default function DashboardHub() {
                 </div>
                 <BarChart data={analytics.statusBreakdown} helperKey="share" />
               </article>
+              */}
             </div>
           </section>
         )}
