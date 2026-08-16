@@ -29,10 +29,12 @@ function doGet(e) {
 function doPost(e) {
   try {
     var payload = JSON.parse((e.postData && e.postData.contents) || "{}");
-    if (payload.action !== "reserveGhpAppointment") throw new Error("Unsupported request.");
     var secret = PropertiesService.getScriptProperties().getProperty("GHP_BOOKING_SECRET");
     if (!secret || payload.secret !== secret) throw new Error("Unauthorized request.");
-    return jsonResponse_({ success: true, appointment: reserveGhpAppointment_(payload) });
+    if (payload.action === "reserveGhpAppointment") return jsonResponse_({ success: true, appointment: reserveGhpAppointment_(payload) });
+    if (payload.action === "recordGhpResult") return jsonResponse_({ success: true, appointment: recordGhpResult_(payload) });
+    if (payload.action === "renameGhpAttendee") return jsonResponse_({ success: true, appointment: renameGhpAttendee_(payload) });
+    throw new Error("Unsupported request.");
   } catch (error) {
     return jsonResponse_({ success: false, error: error.message || "Unable to reserve the seminar seat." });
   }
@@ -133,6 +135,81 @@ function reserveGhpAppointment_(payload) {
   }
 }
 
+// Saves the score, assigns the next sequential control number, and creates the
+// PDF in the same locked request. This deliberately replaces the delayed trigger.
+function recordGhpResult_(payload) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("The certificate system is busy. Please try again.");
+  try {
+    var score = Number(payload.score);
+    if (!payload.appointmentId || score < 1 || score > 10 || score % 1 !== 0) throw new Error("Enter a whole-number score from 1 to 10.");
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GHP_APPOINTMENTS_SHEET);
+    var rows = sheet.getDataRange().getValues(), headers = headerMap_(rows[0] || []), row = -1;
+    for (var i = 1; i < rows.length; i++) if (String(rows[i][headers.appointment_id]) === String(payload.appointmentId)) { row = i; break; }
+    if (row < 0) throw new Error("GHP appointment not found.");
+    var passed = score >= 7, controlNo = String(rows[row][headers.certificate_number] || "").trim();
+    if (passed && !controlNo) controlNo = nextControlNumber_(rows, headers);
+    var now = new Date().toISOString();
+    rows[row][headers.status] = passed ? "Passed" : "Failed";
+    rows[row][headers.exam_result] = passed ? "PASSED" : "FAILED";
+    rows[row][headers.exam_score] = score + "/10";
+    rows[row][headers.exam_recorded_at] = now;
+    rows[row][headers.certificate_number] = passed ? controlNo : "";
+    rows[row][headers.certificate_issued_at] = passed ? (rows[row][headers.certificate_issued_at] || now) : "";
+    sheet.getRange(row + 1, 1, 1, rows[0].length).setValues([rows[row]]);
+    if (passed) generateCertificateForAppointment_(rows[row], headers, controlNo);
+    return rowObject_(rows[0], rows[row]);
+  } finally { lock.releaseLock(); }
+}
+
+function renameGhpAttendee_(payload) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("The certificate system is busy. Please try again.");
+  try {
+    var name = String(payload.name || "").trim();
+    if (!payload.appointmentId || name.length < 2) throw new Error("A valid attendee name is required.");
+    var ss = SpreadsheetApp.getActiveSpreadsheet(), sheet = ss.getSheetByName(GHP_APPOINTMENTS_SHEET);
+    var rows = sheet.getDataRange().getValues(), headers = headerMap_(rows[0] || []), row = -1;
+    for (var i = 1; i < rows.length; i++) if (String(rows[i][headers.appointment_id]) === String(payload.appointmentId)) { row = i; break; }
+    if (row < 0) throw new Error("GHP appointment not found.");
+    rows[row][headers.name] = name;
+    sheet.getRange(row + 1, 1, 1, rows[0].length).setValues([rows[row]]);
+    var controlNo = String(rows[row][headers.certificate_number] || "").trim();
+    if (controlNo) {
+      var issuance = ss.getSheetByName(CONFIG.issuanceSheetName); ensureIssuanceHeaders_(issuance);
+      var certRows = issuance.getDataRange().getValues(), certHeaders = headerMap_(certRows[0]);
+      for (var j = 1; j < certRows.length; j++) if (String(certRows[j][certHeaders.control_no] || "").trim().toUpperCase() === controlNo.toUpperCase()) {
+        certRows[j][certHeaders.name] = name;
+        issuance.getRange(j + 1, 1, 1, certRows[0].length).setValues([certRows[j]]);
+        regenerateCertificate(controlNo);
+        break;
+      }
+    }
+    return rowObject_(rows[0], rows[row]);
+  } finally { lock.releaseLock(); }
+}
+
+function nextControlNumber_(appointmentRows, appointmentHeaders) {
+  var max = 1000, seen = {};
+  function inspect(value) { var match = String(value || "").trim().match(/^GHP-\d{4}-(\d+)$/i); if (match) max = Math.max(max, Number(match[1])); }
+  for (var i = 1; i < appointmentRows.length; i++) inspect(appointmentRows[i][appointmentHeaders.certificate_number]);
+  var issuance = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
+  if (issuance) { var rows = issuance.getDataRange().getValues(), headers = headerMap_(rows[0] || []); for (var j = 1; j < rows.length; j++) inspect(rows[j][headers.control_no]); }
+  return "GHP-" + new Date().getFullYear() + "-" + String(max + 1);
+}
+
+function generateCertificateForAppointment_(source, headers, controlNo) {
+  var issuance = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName); ensureIssuanceHeaders_(issuance);
+  var rows = issuance.getDataRange().getValues(), issuanceHeaders = headerMap_(rows[0] || []);
+  for (var i = 1; i < rows.length; i++) if (String(rows[i][issuanceHeaders.control_no] || "").trim().toUpperCase() === controlNo.toUpperCase()) return;
+  var examDate = source[headers.exam_recorded_at] || source[headers.seminar_date], pdfFile = createCertificatePdf_(controlNo, String(source[headers.name] || "").trim(), examDate);
+  var expiry = new Date(examDate); expiry.setFullYear(expiry.getFullYear() + 1);
+  var verifyUrl = CONFIG.verifyUrl + "?id=" + encodeURIComponent(controlNo);
+  issuance.appendRow([controlNo, source[headers.name] || "", source[headers.exam_score] || "", "PASSED", formatDateSafe_(examDate), source[headers.email] || "", "Generated", verifyUrl, qrUrl_(verifyUrl), formatDateSafe_(expiry), pdfFile.getId()]);
+}
+
+function rowObject_(headers, row) { var object = {}; for (var i = 0; i < headers.length; i++) object[String(headers[i] || "").trim().toLowerCase()] = row[i] || ""; return object; }
+
 // Run this manually once for an already-generated certificate that needs its QR code rebuilt.
 function regenerateCertificate(controlNo) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
@@ -183,12 +260,12 @@ function createCertificatePdf_(controlNo, name, examDate) {
   return pdfFile;
 }
 
-// Run this once to create the automatic certificate-generation trigger.
+// Optional cleanup helper. Certificates are now created immediately when the
+// dashboard saves a passing score, so no time-based trigger is required.
 function setup() {
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (trigger.getHandlerFunction() === "sendCertificates") ScriptApp.deleteTrigger(trigger);
   });
-  ScriptApp.newTrigger("sendCertificates").timeBased().everyMinutes(5).create();
 }
 
 function ensureIssuanceHeaders_(sheet) {

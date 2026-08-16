@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, saveGHPManualEntry, updateGHPAppointment } from "@/lib/googleSheets";
+import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
 import { sendGHPExamResult } from "@/lib/sendMail";
-import { generateCertNumber } from "@/lib/certNumber";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +13,16 @@ const resultFor = (value) => {
   if (["FAILED", "FAIL", "NOT PASSED"].includes(result)) return "FAILED";
   return "";
 };
+
+async function callGhpCertificateService(payload) {
+  const url = process.env.GHP_BOOKING_WEB_APP_URL?.trim();
+  const secret = process.env.GHP_BOOKING_SECRET?.trim();
+  if (!url || !secret) throw new Error("GHP certificate service is not configured. Set GHP_BOOKING_WEB_APP_URL and GHP_BOOKING_SECRET.");
+  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, secret }), cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) throw new Error(data.error || "Unable to update the GHP record.");
+  return data.appointment;
+}
 
 export async function GET(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
@@ -39,6 +48,12 @@ export async function PATCH(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
   try {
     const body = await request.json();
+    if (body.action === "rename") {
+      const appointmentId = clean(body.appointmentId); const name = clean(body.name);
+      if (!appointmentId || name.length < 2 || name.length > 150) return NextResponse.json({ success: false, error: "Enter a valid attendee name." }, { status: 400 });
+      const appointment = await callGhpCertificateService({ action: "renameGhpAttendee", appointmentId, name });
+      return NextResponse.json({ success: true, appointment });
+    }
     if (body.action !== "sync-manual-results") return NextResponse.json({ success: false, error: "Unsupported GHP action." }, { status: 400 });
     const [appointments, entries] = await Promise.all([getGHPAppointments(), getGHPManualEntries()]);
     let notified = 0; let skipped = 0; const errors = [];
@@ -72,15 +87,13 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const appointmentId = clean(body.appointmentId); const score = clean(body.score); const numericScore = Number(score);
-    if (!appointmentId || !/^\d+(\.\d+)?$/.test(score) || numericScore < 0 || numericScore > 10) return NextResponse.json({ success: false, error: "Enter a score from 0 to 10." }, { status: 400 });
+    if (!appointmentId || !/^(?:[1-9]|10)$/.test(score) || numericScore < 1 || numericScore > 10) return NextResponse.json({ success: false, error: "Enter a whole-number score from 1 to 10." }, { status: 400 });
     const appointments = await getGHPAppointments();
     const appointment = appointments.find((item) => item.appointment_id === appointmentId);
     if (!appointment) return NextResponse.json({ success: false, error: "GHP appointment not found." }, { status: 404 });
-    const result = numericScore >= 7 ? "PASSED" : "FAILED";
-    const certificateNumber = result === "PASSED" ? (clean(appointment.certificate_number) || generateCertNumber()) : "";
-    const entry = await saveGHPManualEntry({ appointmentId, email: appointment.email, score: `${score}/10`, result, certificateNumber });
-    const record = await updateGHPAppointment(appointmentId, { status: result === "PASSED" ? "Passed" : "Failed", exam_result: result, exam_score: `${score}/10`, exam_recorded_at: new Date().toISOString(), certificate_number: certificateNumber, certificate_issued_at: result === "PASSED" ? (appointment.certificate_issued_at || new Date().toISOString()) : "" });
-    return NextResponse.json({ success: true, entry, appointment: record });
+    const record = await callGhpCertificateService({ action: "recordGhpResult", appointmentId, score: numericScore });
+    record.certificate_ready = record.exam_result === "PASSED";
+    return NextResponse.json({ success: true, appointment: record });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message || "Unable to save the exam result." }, { status: 500 });
   }

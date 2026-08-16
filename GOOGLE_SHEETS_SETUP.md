@@ -14,7 +14,7 @@ In the dashboard, open **GHP Seminars** and select **Send manual result emails**
 
 ### Certificate template downloads
 
-To use the Google Slides certificate template, replace the bound Apps Script project with [GHP_CERTIFICATE_APPS_SCRIPT.js](./GHP_CERTIFICATE_APPS_SCRIPT.js). It retains the existing `CONFIG` variables and uses `noEmailFolderId` as the permanent Drive folder for administrator-download PDFs. Run `sendCertificates` after entering results (or run `setup` once to add the five-minute trigger). The script never emails certificates; it writes each PDF ID to column K (`pdf_file_id`) of `Certificate Issuance`, which the portal uses for administrator downloads.
+To use the Google Slides certificate template, replace the bound Apps Script project with [GHP_CERTIFICATE_APPS_SCRIPT.js](./GHP_CERTIFICATE_APPS_SCRIPT.js), then redeploy its web app. It retains the existing `CONFIG` variables and uses `noEmailFolderId` as the permanent Drive folder for administrator-download PDFs. When an administrator saves a passing score, the web app atomically assigns the next sequential control number (starting at `GHP-<year>-1001`) and creates the PDF immediately—no trigger or waiting period is required. The script never emails certificates; it writes each PDF ID to column K (`pdf_file_id`) of `Certificate Issuance`, which the portal uses for administrator downloads.
 
 ### Preventing concurrent GHP bookings
 
