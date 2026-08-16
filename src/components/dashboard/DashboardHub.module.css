@@ -11,6 +11,8 @@
   --dash-danger: #b42318;
   --dash-warning: #986f0b;
   --dash-blue: #245b8f;
+  --dash-green-deep: #11281d;
+  --dash-gold: #f0d98a;
 
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -108,8 +110,8 @@
   height: 34px;
   border: 1px solid rgba(255, 255, 255, .18);
   border-radius: 7px;
-  background: var(--gold);
-  color: var(--green-deep);
+  background: var(--dash-gold);
+  color: var(--dash-green-deep);
   font-size: .78rem;
   font-weight: 700;
 }
@@ -167,7 +169,7 @@
 .tabActive {
   background: #ffffff;
   border-color: #ffffff;
-  color: var(--green-deep);
+  color: var(--dash-green-deep);
   font-weight: 650;
 }
 
@@ -248,8 +250,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
-  background: var(--green);
-  border: 1px solid var(--green);
+  background: var(--dash-green-deep);
+  border: 1px solid var(--dash-green-deep);
   border-radius: 8px;
   box-shadow: 0 10px 26px rgba(18, 58, 40, .1);
   border-radius: 0;
@@ -265,7 +267,7 @@
 }
 
 .topbar .kicker {
-  color: var(--gold);
+  color: var(--dash-gold);
 }
 
 .kicker {
@@ -336,7 +338,7 @@
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  border: 2px solid var(--green);
+  border: 2px solid var(--dash-green-deep);
   border-radius: 999px;
   background: #b42318;
   color: #ffffff;
@@ -1236,7 +1238,7 @@
 .reviewDocumentActive {
   background: var(--green-pale);
   border-color: rgba(31, 111, 70, .34);
-  color: var(--green-deep);
+  color: var(--dash-green-deep);
 }
 
 .reviewDocumentButton svg,
