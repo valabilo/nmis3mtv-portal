@@ -247,6 +247,11 @@ export async function GET(request) {
 
     const accredited = accreditedRows.map(normalizeAccredited);
     const banned = bannedRows.map(normalizeBanned);
+    const ghpCertificates = ghpRows.map((row) => ({
+      controlNo: firstValue(row, ["control_no", "certificate_number", "cert_number"]),
+      issuedAt: firstValue(row, ["exam_date", "date_issued", "issued_date", "completed_at", "timestamp"]),
+      status: firstValue(row, ["status", "result"]) || "PASSED",
+    }));
     const currentYear = new Date().getFullYear();
     const ghpIssuedThisYear = ghpRows.filter((row) =>
       isInYear(
@@ -270,6 +275,7 @@ export async function GET(request) {
       data: applications,
       accredited,
       banned,
+      ghpCertificates,
       stats: {
         year: currentYear,
         accreditedTotal: accredited.length,

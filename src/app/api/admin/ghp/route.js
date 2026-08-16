@@ -20,6 +20,9 @@ async function callGhpCertificateService(payload) {
   if (!url || !secret) throw new Error("GHP certificate service is not configured. Set GHP_BOOKING_WEB_APP_URL and GHP_BOOKING_SECRET.");
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, secret }), cache: "no-store" });
   const data = await response.json().catch(() => ({}));
+  if (data.error === "Unsupported request.") {
+    throw new Error("The configured GHP Apps Script deployment is out of date. Deploy the current GHP_CERTIFICATE_APPS_SCRIPT.js as a Web app, then update GHP_BOOKING_WEB_APP_URL with its /exec URL.");
+  }
   if (!response.ok || !data.success) throw new Error(data.error || "Unable to update the GHP record.");
   return data.appointment;
 }
