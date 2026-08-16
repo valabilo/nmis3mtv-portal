@@ -12,6 +12,10 @@ Clients select an available seminar date and one of four sessions in the portal.
 
 In the dashboard, open **GHP Seminars** and select **Send manual result emails**. This sends pass/fail notices only for rows without `notification_sent_at`. Passing certificates can be downloaded by the administrator; no certificate email is sent.
 
+### Certificate template downloads
+
+To use the Google Slides certificate template, replace the bound Apps Script project with [GHP_CERTIFICATE_APPS_SCRIPT.js](./GHP_CERTIFICATE_APPS_SCRIPT.js). It retains the existing `CONFIG` variables and uses `noEmailFolderId` as the permanent Drive folder for administrator-download PDFs. Run `sendCertificates` after entering results (or run `setup` once to add the five-minute trigger). The script never emails certificates; it writes each PDF ID to column K (`pdf_file_id`) of `Certificate Issuance`, which the portal uses for administrator downloads.
+
 ## Step 1: Set Up Google Sheets Structure
 
 ### 1.1 Create New Tabs in Your Google Sheet

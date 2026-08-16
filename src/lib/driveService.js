@@ -77,6 +77,13 @@ export async function uploadFileToDrive({
   };
 }
 
+export async function downloadDriveFile(fileId) {
+  if (!fileId) throw new Error("Certificate PDF file ID is missing.");
+  const drive = getDriveClient();
+  const response = await drive.files.get({ fileId, alt: "media" }, { responseType: "arraybuffer" });
+  return Buffer.from(response.data);
+}
+
 export async function listFolderFiles(folderId) {
   if (!folderId) return [];
 
