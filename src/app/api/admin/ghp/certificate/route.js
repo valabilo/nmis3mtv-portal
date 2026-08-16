@@ -10,5 +10,6 @@ export async function GET(request) {
   const record = (await getGHPAppointments()).find((item) => item.appointment_id === id);
   if (!record?.certificate_number || record.exam_result !== "PASSED") return NextResponse.json({ success: false, error: "A passed manual examination result and certificate number are required before printing." }, { status: 404 });
   const pdf = await createGHPCertificatePdf(record);
-  return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${record.certificate_number}.pdf"` } });
+  const disposition = request.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline";
+  return new NextResponse(pdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `${disposition}; filename="${record.certificate_number}.pdf"` } });
 }

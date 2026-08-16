@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, saveGHPManualEntry, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
 import { sendGHPExamResult } from "@/lib/sendMail";
+import { generateCertNumber } from "@/lib/certNumber";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,13 +62,16 @@ export async function POST(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
   try {
     const body = await request.json();
-    const appointmentId = clean(body.appointmentId); const score = clean(body.score); const result = resultFor(body.result);
-    if (!appointmentId || !score || !result) return NextResponse.json({ success: false, error: "Enter an exam score and select Passed or Failed." }, { status: 400 });
+    const appointmentId = clean(body.appointmentId); const score = clean(body.score); const numericScore = Number(score);
+    if (!appointmentId || !/^\d+(\.\d+)?$/.test(score) || numericScore < 0 || numericScore > 10) return NextResponse.json({ success: false, error: "Enter a score from 0 to 10." }, { status: 400 });
     const appointments = await getGHPAppointments();
     const appointment = appointments.find((item) => item.appointment_id === appointmentId);
     if (!appointment) return NextResponse.json({ success: false, error: "GHP appointment not found." }, { status: 404 });
-    const entry = await saveGHPManualEntry({ appointmentId, email: appointment.email, score, result });
-    return NextResponse.json({ success: true, entry });
+    const result = numericScore >= 7 ? "PASSED" : "FAILED";
+    const certificateNumber = result === "PASSED" ? (clean(appointment.certificate_number) || generateCertNumber()) : "";
+    const entry = await saveGHPManualEntry({ appointmentId, email: appointment.email, score: `${score}/10`, result, certificateNumber });
+    const record = await updateGHPAppointment(appointmentId, { status: result === "PASSED" ? "Passed" : "Failed", exam_result: result, exam_score: `${score}/10`, exam_recorded_at: new Date().toISOString(), certificate_number: certificateNumber, certificate_issued_at: result === "PASSED" ? (appointment.certificate_issued_at || new Date().toISOString()) : "" });
+    return NextResponse.json({ success: true, entry, appointment: record });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message || "Unable to save the exam result." }, { status: 500 });
   }

@@ -15,7 +15,6 @@ import styles from "./Header.module.css";
 
 const SEARCH_PLACEHOLDERS = {
   auto: "Search MTV ref, plate, or GHP cert...",
-  application: "Application reference number...",
   mtv: "Plate number or MTV number...",
   certificate: "GHP certificate control number...",
 };
@@ -37,7 +36,6 @@ export default function Header() {
     const normalized = query.trim().toUpperCase();
 
     if (searchType !== "auto") return searchType;
-    if (/^MTV-\d{4}-\d{5,6}$/.test(normalized)) return "application";
     if (/^GHP[-\s]/.test(normalized) || /^CERT[-\s]/.test(normalized))
       return "certificate";
     return "mtv";
@@ -51,10 +49,6 @@ export default function Header() {
     const target = resolveSearchType(query);
     const encoded = encodeURIComponent(query);
 
-    if (target === "application") {
-      router.push(`/application-status?ref=${encoded}`);
-      return;
-    }
 
     if (target === "certificate") {
       router.push(`/certificate-verification?id=${encoded}`);
@@ -87,7 +81,6 @@ export default function Header() {
               onChange={(e) => setSearchType(e.target.value)}
               aria-label="Search type">
               <option value="auto">Auto</option>
-              <option value="application">Application Status</option>
               <option value="mtv">MTV Verification</option>
               <option value="certificate">GHP Certificate</option>
             </select>
@@ -96,7 +89,7 @@ export default function Header() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={SEARCH_PLACEHOLDERS[searchType]}
-              aria-label="Search MTV application status, MTV verification, or GHP certificate"
+              aria-label="Search MTV verification or GHP certificate"
             />
             <button type="submit" aria-label="Search">Search</button>
           </form>

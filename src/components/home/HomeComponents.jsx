@@ -21,13 +21,7 @@ const quickActions = [
     href: "/ghp",
     cta: "Start Orientation",
   },
-  {
-    icon: "MTV",
-    title: "MTV Application",
-    desc: "Submit a new MTV application or check the status of an existing one.",
-    href: "/apply",
-    cta: "Open Application",
-  },
+  // MTV application card is intentionally hidden while applications are unavailable.
 ];
 
 const processSteps = [
@@ -135,23 +129,7 @@ export function ProcessSteps() {
 }
 
 export function CTAStrip() {
-  return (
-    <section className={styles.ctaStrip}>
-      <div className={`container ${styles.ctaInner}`}>
-        <div>
-          <span className={styles.ctaLabel}>Ready to apply?</span>
-          <h2>Submit or track your MTV application online.</h2>
-          <p>
-            Use the application page for new submissions and reference number
-            lookups.
-          </p>
-        </div>
-        <Link href="/apply" className={styles.ctaButton}>
-          Open Application
-        </Link>
-      </div>
-    </section>
-  );
+  return null;
 }
 
 export function InfoCards() {

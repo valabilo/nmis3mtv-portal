@@ -18,7 +18,9 @@ export const NAV_ITEMS = [
     icon: "",
     label: "Requirements",
   },
-  { id: "apply", href: "/apply", icon: "", label: "MTV Application" },
+  // MTV applications are temporarily unavailable. Keep the route in place so it
+  // can be restored later, but do not expose it in public navigation.
+  // { id: "apply", href: "/apply", icon: "", label: "MTV Application" },
   { id: "verify", href: "/verify", icon: "", label: "Verify MTV" },
   { id: "banned", href: "/banned", icon: "", label: "Banned List" },
   { id: "contact", href: "/contact", icon: "", label: "Contact" },

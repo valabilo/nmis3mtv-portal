@@ -71,11 +71,8 @@ const BANNED_STATUSES = ["Banned", "Suspended", "Revoked"];
 const TABS = [
   { id: "overview", label: "Overview", icon: Squares2X2Icon },
   { id: "analytics", label: "Analytics", icon: ChartBarIcon },
-  {
-    id: "applications",
-    label: "Applications",
-    icon: ClipboardDocumentListIcon,
-  },
+  // Application management is temporarily unavailable.
+  // { id: "applications", label: "Applications", icon: ClipboardDocumentListIcon },
   { id: "ghp", label: "GHP Seminars", icon: DocumentTextIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "banned", label: "Banned", icon: XCircleIcon },
