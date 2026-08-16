@@ -16,6 +16,10 @@ In the dashboard, open **GHP Seminars** and select **Send manual result emails**
 
 To use the Google Slides certificate template, replace the bound Apps Script project with [GHP_CERTIFICATE_APPS_SCRIPT.js](./GHP_CERTIFICATE_APPS_SCRIPT.js). It retains the existing `CONFIG` variables and uses `noEmailFolderId` as the permanent Drive folder for administrator-download PDFs. Run `sendCertificates` after entering results (or run `setup` once to add the five-minute trigger). The script never emails certificates; it writes each PDF ID to column K (`pdf_file_id`) of `Certificate Issuance`, which the portal uses for administrator downloads.
 
+### Preventing concurrent GHP bookings
+
+The same bound Apps Script also reserves seminar seats under a shared lock, so the final available seat is assigned only to the first completed booking request. In Apps Script **Project Settings**, add a script property named `GHP_BOOKING_SECRET` with a long random value. Then deploy the project as a **Web app** (execute as the spreadsheet owner; access: anyone), copy its `/exec` URL to `GHP_BOOKING_WEB_APP_URL`, and put the same secret in `GHP_BOOKING_SECRET` in the portal's Vercel environment variables. Redeploy the portal after saving those variables.
+
 ## Step 1: Set Up Google Sheets Structure
 
 ### 1.1 Create New Tabs in Your Google Sheet

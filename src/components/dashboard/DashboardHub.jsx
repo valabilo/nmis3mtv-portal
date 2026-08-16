@@ -6,18 +6,14 @@ import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
   BellIcon,
-  ChartBarIcon,
   ChevronDownIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
-  ClipboardDocumentListIcon,
   DocumentTextIcon,
-  FolderOpenIcon,
   HomeIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   ShieldCheckIcon,
-  Squares2X2Icon,
   TruckIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
@@ -69,15 +65,9 @@ const ACCREDITED_STATUSES = [
 const BANNED_STATUSES = ["Banned", "Suspended", "Revoked"];
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: Squares2X2Icon },
-  { id: "analytics", label: "Analytics", icon: ChartBarIcon },
-  // Application management is temporarily unavailable.
-  // { id: "applications", label: "Applications", icon: ClipboardDocumentListIcon },
   { id: "ghp", label: "GHP Seminars", icon: DocumentTextIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "banned", label: "Banned", icon: XCircleIcon },
-  { id: "details", label: "Details", icon: DocumentTextIcon },
-  { id: "documents", label: "Documents", icon: FolderOpenIcon },
 ];
 
 const EXPORT_MAX_BYTES = 3 * 1024 * 1024;
@@ -934,7 +924,7 @@ export default function DashboardHub() {
   const knownApplicationsRef = useRef(new Map());
   const knownApplicationsReadyRef = useRef(false);
   const notificationTimersRef = useRef(new Map());
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("ghp");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [applications, setApplications] = useState([]);
   const [accreditedRecords, setAccreditedRecords] = useState([]);

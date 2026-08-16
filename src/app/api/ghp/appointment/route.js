@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { createGHPAppointment, getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
+import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
 import { getGHPSeminarDates, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
 import { sendGHPSeminarNotification } from "@/lib/sendMail";
@@ -8,6 +8,21 @@ import { sendGHPSeminarNotification } from "@/lib/sendMail";
 export const runtime = "nodejs";
 
 const clean = (value, limit = 300) => String(value || "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, limit);
+
+async function reserveSeat(payload) {
+  const webAppUrl = process.env.GHP_BOOKING_WEB_APP_URL?.trim();
+  const secret = process.env.GHP_BOOKING_SECRET?.trim();
+  if (!webAppUrl || !secret) throw new Error("GHP seat reservation is not configured. Set GHP_BOOKING_WEB_APP_URL and GHP_BOOKING_SECRET.");
+  const response = await fetch(webAppUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, action: "reserveGhpAppointment", secret }),
+    cache: "no-store",
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) throw new Error(result.error || "Unable to reserve the seminar seat.");
+  return result.appointment;
+}
 
 export async function GET() {
   try {
@@ -38,15 +53,12 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Please provide a valid full name, email address, seminar date, and session time." }, { status: 400 });
     }
     if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
-    const appointments = await getGHPAppointments();
-    const booked = appointments.filter((item) => item.seminar_date === seminarDate && item.seminar_time === seminarTime && !["Cancelled", "Failed"].includes(item.status)).length;
-    if (booked >= SEMINAR_CAPACITY) return NextResponse.json({ success: false, error: "That seminar is already full. Please choose another schedule." }, { status: 409 });
-    const appointment = await createGHPAppointment({
+    const appointment = await reserveSeat({
       appointmentId: uuidv4(), name, email, contact, seminarDate, seminarTime, remarks: clean(body.remarks),
     });
     try {
       await sendGHPSeminarNotification(appointment);
-      const savedAppointment = await updateGHPAppointment(appointment.appointmentId, {
+      const savedAppointment = await updateGHPAppointment(appointment.appointment_id, {
         notification_sent_at: new Date().toISOString(),
       });
       return NextResponse.json({ success: true, appointment: savedAppointment, emailSent: true }, { status: 201 });

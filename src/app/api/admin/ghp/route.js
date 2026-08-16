@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, saveGHPManualEntry, updateGHPAppointment } from "@/lib/googleSheets";
+import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, saveGHPManualEntry, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
 import { sendGHPExamResult } from "@/lib/sendMail";
 import { generateCertNumber } from "@/lib/certNumber";
@@ -18,7 +18,16 @@ const resultFor = (value) => {
 export async function GET(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
   try {
-    const appointments = await getGHPAppointments();
+    const [appointments, certificates] = await Promise.all([getGHPAppointments(), getCertificateIssuance()]);
+    const readyCertificateNumbers = new Set(
+      certificates
+        .filter((certificate) => String(certificate.pdf_file_id || certificate.certificate_pdf_file_id || certificate.drive_file_id || "").trim())
+        .map((certificate) => String(certificate.control_no || certificate.certificate_number || "").trim().toUpperCase())
+        .filter(Boolean),
+    );
+    appointments.forEach((appointment) => {
+      appointment.certificate_ready = readyCertificateNumbers.has(String(appointment.certificate_number || "").trim().toUpperCase());
+    });
     appointments.sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0));
     return NextResponse.json({ success: true, appointments });
   } catch (error) {
@@ -74,5 +83,17 @@ export async function POST(request) {
     return NextResponse.json({ success: true, entry, appointment: record });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message || "Unable to save the exam result." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  if (!requestHasDashboardSession(request)) return unauthorized();
+  try {
+    const appointmentId = clean(request.nextUrl.searchParams.get("appointmentId"));
+    if (!appointmentId) return NextResponse.json({ success: false, error: "GHP appointment ID is required." }, { status: 400 });
+    await deleteGHPAppointment(appointmentId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message || "Unable to delete the GHP appointment." }, { status: 500 });
   }
 }

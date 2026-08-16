@@ -341,6 +341,40 @@ export async function updateGHPAppointment(appointmentId, updates) {
   return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
 }
 
+export async function deleteGHPAppointment(appointmentId) {
+  await ensureHeaders("GHP_Appointments", GHP_APPOINTMENT_HEADERS);
+  const { rows } = await readSheetWithRowNumbers("GHP_Appointments");
+  const record = rows.find((row) => row.appointment_id === appointmentId);
+  if (!record) throw new Error("GHP appointment not found.");
+
+  const sheets = getSheetsClient();
+  const spreadsheetId = getSpreadsheetId();
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets(properties(sheetId,title))",
+  });
+  const sheet = (metadata.data.sheets || []).find(
+    (item) => item.properties?.title === "GHP_Appointments",
+  );
+  if (sheet?.properties?.sheetId === undefined) throw new Error("GHP_Appointments sheet not found.");
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId: sheet.properties.sheetId,
+            dimension: "ROWS",
+            startIndex: record._rowNumber - 1,
+            endIndex: record._rowNumber,
+          },
+        },
+      }],
+    },
+  });
+}
+
 const GHP_MANUAL_ENTRY_HEADERS = [
   "appointment_id",
   "email",

@@ -24,6 +24,20 @@ function doGet(e) {
     .setTitle("Certificate Verification - NMIS RTOC III");
 }
 
+// Deploy this bound project as a Web app to reserve seminar seats atomically.
+// Store GHP_BOOKING_SECRET in Script Properties, not in this source file.
+function doPost(e) {
+  try {
+    var payload = JSON.parse((e.postData && e.postData.contents) || "{}");
+    if (payload.action !== "reserveGhpAppointment") throw new Error("Unsupported request.");
+    var secret = PropertiesService.getScriptProperties().getProperty("GHP_BOOKING_SECRET");
+    if (!secret || payload.secret !== secret) throw new Error("Unauthorized request.");
+    return jsonResponse_({ success: true, appointment: reserveGhpAppointment_(payload) });
+  } catch (error) {
+    return jsonResponse_({ success: false, error: error.message || "Unable to reserve the seminar seat." });
+  }
+}
+
 function lookupCertificate(id) {
   var certificate = findCertificateById_(id);
   return certificate ? { found: true, controlNo: certificate.controlNo, name: certificate.name, score: certificate.score, status: certificate.status, examDate: certificate.examDate, expiryDate: certificate.expiryDate, isExpired: certificate.isExpired } : { found: false };
@@ -77,6 +91,45 @@ function sendCertificates() {
     var qrUrl = qrUrl_(verifyUrl);
     issuanceSheet.appendRow([controlNo, name, source[appointmentHeaders.exam_score] || "", "PASSED", formatDateSafe_(examDate), source[appointmentHeaders.email] || "", "Generated", verifyUrl, qrUrl, formatDateSafe_(expiry), pdfFile.getId()]);
     existing[controlNo] = true;
+  }
+}
+
+function reserveGhpAppointment_(payload) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error("The booking system is busy. Please try again.");
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GHP_APPOINTMENTS_SHEET);
+    if (!sheet) throw new Error("Missing sheet: " + GHP_APPOINTMENTS_SHEET);
+    var rows = sheet.getDataRange().getValues();
+    if (!rows.length) throw new Error("GHP_Appointments is missing its header row.");
+    var headers = headerMap_(rows[0]);
+    ["appointment_id", "name", "email", "contact", "remarks", "status", "seminar_date", "seminar_time"].forEach(function(header) {
+      if (headers[header] === undefined) throw new Error("GHP_Appointments is missing the " + header + " column.");
+    });
+    var booked = 0;
+    for (var i = 1; i < rows.length; i++) {
+      if (String(rows[i][headers.seminar_date] || "") === payload.seminarDate && String(rows[i][headers.seminar_time] || "") === payload.seminarTime && ["Cancelled", "Failed"].indexOf(String(rows[i][headers.status] || "")) === -1) booked++;
+    }
+    if (booked >= 30) throw new Error("That seminar is already full. Please choose another schedule.");
+    var now = new Date().toISOString();
+    var values = rows[0].map(function(header) {
+      switch (String(header || "").trim().toLowerCase()) {
+        case "appointment_id": return payload.appointmentId;
+        case "requested_at": return now;
+        case "name": return payload.name;
+        case "email": return payload.email;
+        case "contact": return payload.contact || "";
+        case "remarks": return payload.remarks || "";
+        case "status": return "Scheduled";
+        case "seminar_date": return payload.seminarDate;
+        case "seminar_time": return payload.seminarTime;
+        default: return "";
+      }
+    });
+    sheet.appendRow(values);
+    return { appointment_id: payload.appointmentId, requested_at: now, name: payload.name, email: payload.email, contact: payload.contact || "", remarks: payload.remarks || "", status: "Scheduled", seminar_date: payload.seminarDate, seminar_time: payload.seminarTime };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -152,7 +205,9 @@ function headerMap_(headers) {
 }
 
 function qrUrl_(verifyUrl) {
-  return "https://quickchart.io/qr?size=300&type=dots&margin=1&errorCorrectionLevel=H&centerImageUrl=" + encodeURIComponent(CONFIG.nmisLogoUrl) + "&centerImageSizeRatio=0.3&text=" + encodeURIComponent(verifyUrl);
+  // Keep the QR self-contained. QuickChart cannot reliably retrieve a private or
+  // redirected Google Drive logo URL, which makes Slides reject the image.
+  return "https://quickchart.io/qr?size=300&margin=1&errorCorrectionLevel=H&text=" + encodeURIComponent(verifyUrl);
 }
 
 function getQrBlob_(verifyUrl) {
@@ -172,6 +227,10 @@ function formatDateSafe_(value) {
 
 function escapeHtml_(value) {
   return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+}
+
+function jsonResponse_(value) {
+  return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function searchPage_() {
