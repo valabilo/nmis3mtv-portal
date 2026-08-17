@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { OFFICE_INFO } from "@/lib/constants";
 import { buildOrderOfPaymentData } from "@/lib/orderOfPayment";
 
 // ── Auth ──────────────────────────────────────────────────────────
@@ -312,11 +313,22 @@ export async function createGHPAppointment(data) {
   await ensureHeaders("GHP_Appointments", GHP_APPOINTMENT_HEADERS);
   const appointmentId = data.appointmentId;
   const requestedAt = new Date().toISOString();
+  const seminarVenue = data.seminarVenue || data.seminar_venue || OFFICE_INFO.address;
+
   await appendRow("GHP_Appointments", [
     appointmentId, requestedAt, data.name, data.email, data.contact || "",
     data.seminarDate || "", data.remarks || "", "Scheduled", data.seminarDate || "", data.seminarTime || "", "", "", "", "", "", "", "", "", "", "", "",
   ]);
-  return { ...data, appointmentId, requestedAt, preferredDate: data.seminarDate, seminar_date: data.seminarDate, seminar_time: data.seminarTime, status: "Scheduled" };
+  return {
+    ...data,
+    appointmentId,
+    requestedAt,
+    preferredDate: data.seminarDate,
+    seminar_date: data.seminarDate,
+    seminar_time: data.seminarTime,
+    seminar_venue: seminarVenue,
+    status: "Scheduled",
+  };
 }
 
 export async function getGHPAppointments() {

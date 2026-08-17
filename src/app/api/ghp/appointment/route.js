@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { OFFICE_INFO } from "@/lib/constants";
 import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
 import { getGHPSeminarDates, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
@@ -54,11 +55,12 @@ export async function POST(request) {
     }
     if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
     const appointment = await reserveSeat({
-      appointmentId: uuidv4(), name, email, contact, seminarDate, seminarTime, remarks: clean(body.remarks),
+      appointmentId: uuidv4(), name, email, contact, seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address, remarks: clean(body.remarks),
     });
     try {
-      await sendGHPSeminarNotification(appointment);
+      await sendGHPSeminarNotification({ ...appointment, seminar_venue: appointment.seminar_venue || OFFICE_INFO.address });
       const savedAppointment = await updateGHPAppointment(appointment.appointment_id, {
+        seminar_venue: appointment.seminar_venue || OFFICE_INFO.address,
         notification_sent_at: new Date().toISOString(),
       });
       return NextResponse.json({ success: true, appointment: savedAppointment, emailSent: true }, { status: 201 });
