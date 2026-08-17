@@ -720,6 +720,20 @@ function BarChart({ data, valueKey = "count", labelKey = "label", helperKey }) {
   );
 }
 
+function hasIssuedCertificate(record) {
+  return Boolean(
+    String(
+      record?.controlNo ||
+        record?.certificateNumber ||
+        record?.certificate_number ||
+        record?.certificate_no ||
+        record?.control_no ||
+        record?.cert_number ||
+        "",
+    ).trim(),
+  );
+}
+
 function MonthlyTrendChart({ data }) {
   const max = Math.max(...data.map((item) => item.count), 1);
 
@@ -1366,11 +1380,14 @@ export default function DashboardHub() {
             selectedYear,
         )
       : accreditedRecords;
+    const issuedGhpCertificates = ghpCertificates.filter((certificate) =>
+      hasIssuedCertificate(certificate),
+    );
     const yearGhpCertificates = selectedYear
-      ? ghpCertificates.filter(
+      ? issuedGhpCertificates.filter(
           (certificate) => yearFromValue(certificate.issuedAt) === selectedYear,
         )
-      : ghpCertificates;
+      : issuedGhpCertificates;
     const monthlyAccredited = MONTHS.map(([month, label]) => ({
       month,
       label,

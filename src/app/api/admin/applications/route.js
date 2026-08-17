@@ -185,6 +185,20 @@ function isInYear(value, year) {
   return String(value).includes(String(year));
 }
 
+function hasIssuedCertificate(row) {
+  return Boolean(
+    String(
+      firstValue(row, [
+        "certificate_number",
+        "control_no",
+        "cert_number",
+        "certificate_no",
+        "controlNumber",
+      ]) || "",
+    ).trim(),
+  );
+}
+
 function unauthorizedResponse() {
   return NextResponse.json(
     { success: false, error: "Dashboard login required." },
@@ -247,14 +261,16 @@ export async function GET(request) {
 
     const accredited = accreditedRows.map(normalizeAccredited);
     const banned = bannedRows.map(normalizeBanned);
-    const ghpCertificates = ghpRows.map((row) => ({
-      controlNo: firstValue(row, ["control_no", "certificate_number", "cert_number"]),
-      issuedAt: firstValue(row, ["exam_date", "date_issued", "issued_date", "completed_at", "timestamp"]),
-      status: firstValue(row, ["status", "result"]) || "PASSED",
-    }));
+    const ghpCertificates = ghpRows
+      .filter((row) => hasIssuedCertificate(row))
+      .map((row) => ({
+        controlNo: firstValue(row, ["control_no", "certificate_number", "cert_number", "certificate_no", "controlNumber"]),
+        issuedAt: firstValue(row, ["exam_date", "date_issued", "issued_date", "completed_at", "timestamp", "certificate_issued_at"]),
+        status: firstValue(row, ["status", "result", "exam_result"]) || "PASSED",
+      }));
     const currentYear = new Date().getFullYear();
-    const ghpIssuedThisYear = ghpRows.filter((row) =>
-      isInYear(
+    const ghpIssuedThisYear = ghpRows.filter(
+      (row) => hasIssuedCertificate(row) && isInYear(
         firstValue(row, [
           "exam_date",
           "date_issued",
@@ -262,6 +278,7 @@ export async function GET(request) {
           "completed_at",
           "timestamp",
           "expiry_date",
+          "certificate_issued_at",
         ]),
         currentYear,
       ),

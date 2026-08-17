@@ -109,14 +109,24 @@ export default function GHPAppointments() {
   }
 
   async function downloadSelected() {
+    if (!selected.length) return;
     setDownloading(true);
     try {
-      for (const id of selected) {
-        const item = items.find((record) => record.appointment_id === id);
-        if (item) await download(item);
-        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      const response = await fetch(`/api/admin/ghp/certificate?ids=${encodeURIComponent(selected.join(","))}&zip=1`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Certificate zip download failed.");
       }
-      setMessage(`${selected.length} certificate${selected.length === 1 ? "" : "s"} downloaded one at a time.`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `NMIS_GHP_Certificates_${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`${selected.length} certificate${selected.length === 1 ? "" : "s"} downloaded as a ZIP file.`);
     } catch (error) { setMessage(error.message || "Certificate download failed."); }
     finally { setDownloading(false); }
   }
