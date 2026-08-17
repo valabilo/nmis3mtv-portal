@@ -241,7 +241,7 @@ const MONTHS = [
 const DASHBOARD_POLL_INTERVAL_MS = 30000;
 const MAX_DASHBOARD_NOTIFICATIONS = 20;
 const MAX_VISIBLE_TOASTS = 4;
-const NOTIFICATION_VISIBLE_MS = 15000;
+const NOTIFICATION_VISIBLE_MS = 10000;
 
 function formatDate(value) {
   if (!value) return "No date";
@@ -931,6 +931,7 @@ export default function DashboardHub() {
   const [applications, setApplications] = useState([]);
   const [accreditedRecords, setAccreditedRecords] = useState([]);
   const [bannedRecords, setBannedRecords] = useState([]);
+  const [ghpCertificates, setGhpCertificates] = useState([]);
   const [stats, setStats] = useState({
     year: new Date().getFullYear(),
     accreditedTotal: 0,
@@ -1000,6 +1001,7 @@ export default function DashboardHub() {
         knownApplicationsReadyRef.current = true;
         setAccreditedRecords(json.accredited || []);
         setBannedRecords(json.banned || []);
+        setGhpCertificates(json.ghpCertificates || []);
         setStats((current) => ({ ...current, ...(json.stats || {}) }));
         setSelectedRef((current) => current || records[0]?.reference || "");
       } catch (err) {
@@ -1052,6 +1054,7 @@ export default function DashboardHub() {
     knownApplicationsReadyRef.current = true;
     setAccreditedRecords(refreshedJson.accredited || []);
     setBannedRecords(refreshedJson.banned || []);
+    setGhpCertificates(refreshedJson.ghpCertificates || []);
     setStats((current) => ({ ...current, ...(refreshedJson.stats || {}) }));
   }
 
@@ -1327,12 +1330,17 @@ export default function DashboardHub() {
   }, [applications]);
 
   const analyticsYears = useMemo(() => {
-    const years = accreditedRecords.map((record) =>
-      yearFromValue(record.approvedAt || record.dateIssued),
-    ).filter(Boolean);
+    const years = [
+      ...accreditedRecords.map((record) =>
+        yearFromValue(record.approvedAt || record.dateIssued),
+      ),
+      ...ghpCertificates.map((certificate) =>
+        yearFromValue(certificate.issuedAt),
+      ),
+    ].filter(Boolean);
 
     return Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a));
-  }, [accreditedRecords]);
+  }, [accreditedRecords, ghpCertificates]);
 
   useEffect(() => {
     if (
@@ -1358,12 +1366,24 @@ export default function DashboardHub() {
             selectedYear,
         )
       : accreditedRecords;
+    const yearGhpCertificates = selectedYear
+      ? ghpCertificates.filter(
+          (certificate) => yearFromValue(certificate.issuedAt) === selectedYear,
+        )
+      : ghpCertificates;
     const monthlyAccredited = MONTHS.map(([month, label]) => ({
       month,
       label,
       count: yearAccredited.filter(
         (record) =>
           monthFromValue(record.approvedAt || record.dateIssued) === month,
+      ).length,
+    }));
+    const monthlyGhpCertificates = MONTHS.map(([month, label]) => ({
+      month,
+      label,
+      count: yearGhpCertificates.filter(
+        (certificate) => monthFromValue(certificate.issuedAt) === month,
       ).length,
     }));
     const yearlyMap = new Map();
@@ -1406,10 +1426,12 @@ export default function DashboardHub() {
       monthlyAccredited,
       yearlyAccredited,
       establishmentTypes,
+      monthlyGhpCertificates,
       statusBreakdown,
       selectedAccredited: yearAccredited.length,
+      selectedGhpCertificates: yearGhpCertificates.length,
     };
-  }, [accreditedRecords, analyticsYear, applications]);
+  }, [accreditedRecords, analyticsYear, applications, ghpCertificates]);
 
   const filteredAccreditedRecords = useMemo(() => {
     return accreditedRecords.filter((record) => {
@@ -2112,7 +2134,7 @@ export default function DashboardHub() {
                 <span className={styles.kicker}>Analytics</span>
                 <h2>Accreditation Analytics</h2>
                 <p>
-                  {analytics.selectedAccredited} accredited MTV records in view.
+                  {analytics.selectedAccredited} accredited MTV records and {analytics.selectedGhpCertificates} GHP certificates in view.
                 </p>
               </div>
               <Dropdown
@@ -2125,13 +2147,11 @@ export default function DashboardHub() {
             </div>
 
             <div className={styles.analyticsGrid}>
-              {/* Future use: restore this application-pipeline chart when
-                  application analytics are needed on the dashboard again.
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <div>
                     <span className={styles.kicker}>Monthly</span>
-                    <h2>Accredited by Month</h2>
+                    <h2>Accredited MTVs Issued Each Month</h2>
                   </div>
                 </div>
                 <MonthlyTrendChart data={analytics.monthlyAccredited} />
@@ -2141,7 +2161,7 @@ export default function DashboardHub() {
                 <div className={styles.panelHeader}>
                   <div>
                     <span className={styles.kicker}>Establishment Type</span>
-                    <h2>Accredited MTVs</h2>
+                    <h2>Accredited MTVs per Establishment</h2>
                   </div>
                 </div>
                 <BarChart
@@ -2150,26 +2170,26 @@ export default function DashboardHub() {
                 />
               </article>
 
-              <article className={styles.panel}>
+              <article className={styles.statPanel}>
                 <div className={styles.panelHeader}>
                   <div>
-                    <span className={styles.kicker}>Yearly</span>
-                    <h2>Accredited Volume</h2>
+                    <span className={styles.kicker}>GHP Certification</span>
+                    <h2>Total GHP Certificates Issued</h2>
                   </div>
                 </div>
-                <BarChart data={analytics.yearlyAccredited} />
+                <strong>{loading ? "..." : analytics.selectedGhpCertificates}</strong>
+                <p>{analyticsYear === "All" ? "All recorded GHP certificates." : `Certificates issued in ${analyticsYear}.`}</p>
               </article>
 
               <article className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <div>
-                    <span className={styles.kicker}>Status</span>
-                    <h2>Application Pipeline</h2>
+                    <span className={styles.kicker}>Monthly</span>
+                    <h2>GHP Certificates Issued Each Month</h2>
                   </div>
                 </div>
-                <BarChart data={analytics.statusBreakdown} helperKey="share" />
+                <MonthlyTrendChart data={analytics.monthlyGhpCertificates} />
               </article>
-              */}
             </div>
           </section>
         )}

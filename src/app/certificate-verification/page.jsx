@@ -147,10 +147,8 @@ function CertificateVerificationContent() {
                 <div className={styles.grid}>
                   <Detail label="Control Number" value={certificate.controlNo} />
                   <Detail label="Result" value={certificate.status} />
-                  <Detail label="Score" value={certificate.score} />
-                  <Detail label="Exam Date" value={certificate.examDate} />
                   <Detail label="Valid Until" value={certificate.expiryDate} />
-                  <Detail label="Certificate Sent" value={certificate.certSent} />
+                  <Detail label="Certificate Issued" value={certificate.certSent || "Generated"} />
                 </div>
 
                 <div className={validCertificate ? styles.noticeValid : styles.noticeExpired}>

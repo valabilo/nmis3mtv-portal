@@ -338,7 +338,7 @@ function searchPage_() {
 }
 
 function certificatePage_(certificate) {
-  return "<html><body style='font-family:Arial;padding:30px'><h2>Certificate " + (certificate.isExpired ? "Expired" : "Valid") + "</h2><p><b>Issued to:</b> " + escapeHtml_(certificate.name) + "</p><p><b>Control number:</b> " + escapeHtml_(certificate.controlNo) + "</p><p><b>Score:</b> " + escapeHtml_(certificate.score) + "</p><p><b>Exam date:</b> " + escapeHtml_(certificate.examDate) + "</p><p><b>Valid until:</b> " + escapeHtml_(certificate.expiryDate) + "</p></body></html>";
+  return "<html><body style='font-family:Arial;padding:30px'><h2>Certificate " + (certificate.isExpired ? "Expired" : "Valid") + "</h2><p><b>Issued to:</b> " + escapeHtml_(certificate.name) + "</p><p><b>Control number:</b> " + escapeHtml_(certificate.controlNo) + "</p><p><b>Certificate issued:</b> Generated</p><p><b>Valid until:</b> " + escapeHtml_(certificate.expiryDate) + "</p></body></html>";
 }
 
 function notFoundPage_(id) {
