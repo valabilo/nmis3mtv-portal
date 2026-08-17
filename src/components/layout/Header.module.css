@@ -233,6 +233,10 @@
 }
 
 @media (max-width: 768px) {
+  .header {
+    position: static;
+  }
+
   .headerTop {
     align-items: center;
     flex-direction: row;
