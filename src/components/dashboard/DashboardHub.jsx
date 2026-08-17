@@ -734,11 +734,11 @@ function hasIssuedCertificate(record) {
   );
 }
 
-function MonthlyTrendChart({ data }) {
+function MonthlyTrendChart({ data, compact = false }) {
   const max = Math.max(...data.map((item) => item.count), 1);
 
   return (
-    <div className={styles.monthlyChart}>
+    <div className={`${styles.monthlyChart} ${compact ? styles.monthlyChartCompact : ""}`}>
       {data.map((item) => (
         <div className={styles.monthColumn} key={item.month}>
           <strong>{item.count}</strong>
@@ -2196,6 +2196,9 @@ export default function DashboardHub() {
                 </div>
                 <strong>{loading ? "..." : analytics.selectedGhpCertificates}</strong>
                 <p>{analyticsYear === "All" ? "All recorded GHP certificates." : `Certificates issued in ${analyticsYear}.`}</p>
+                <div className={styles.ghpTrendSummary}>
+                  <MonthlyTrendChart data={analytics.monthlyGhpCertificates} compact />
+                </div>
               </article>
 
               <article className={styles.panel}>

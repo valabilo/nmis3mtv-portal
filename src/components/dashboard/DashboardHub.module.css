@@ -652,6 +652,28 @@
   padding: 14px 12px 10px;
 }
 
+.monthlyChartCompact {
+  min-height: 120px;
+  padding: 10px 8px 8px;
+}
+
+.monthlyChartCompact .monthTrack {
+  height: 70px;
+}
+
+.monthlyChartCompact .monthColumn {
+  grid-template-rows: 16px 1fr 14px;
+}
+
+.monthlyChartCompact strong,
+.monthlyChartCompact small {
+  font-size: .62rem;
+}
+
+.ghpTrendSummary {
+  margin-top: 10px;
+}
+
 .monthColumn {
   display: grid;
   grid-template-rows: 20px 1fr 18px;

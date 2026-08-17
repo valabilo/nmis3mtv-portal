@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./GHPAppointments.module.css";
 
+const POPUP_VISIBLE_MS = 10000;
 const fmt = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "short", day: "numeric" }) : "Unscheduled";
 const passed = (item) => item.exam_result === "PASSED" && item.certificate_number;
 const filename = (item) => `NMIS_GHP_Certificate_${String(item.certificate_number).replace(/[^a-z0-9-]/gi, "_")}_${String(item.name).trim().replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}.pdf`;
@@ -42,6 +43,11 @@ export default function GHPAppointments() {
 
   useEffect(() => { load(); }, []);
   useEffect(() => { setSession(""); setSelected([]); }, [date]);
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = window.setTimeout(() => setMessage(""), POPUP_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [message]);
   useEffect(() => {
     const closeMenus = (event) => document.querySelectorAll(`.${styles.rowMenu}[open]`).forEach((menu) => { if (!menu.contains(event.target)) menu.removeAttribute("open"); });
     document.addEventListener("pointerdown", closeMenus);
