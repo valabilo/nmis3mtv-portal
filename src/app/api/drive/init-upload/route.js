@@ -32,6 +32,16 @@ export async function POST(request) {
     const { fileName, mimeType, fileSize } = body;
     const folderId = body.purpose === "ghp-id" ? process.env.GHP_ID_UPLOAD_FOLDER_ID : body.folderId;
 
+    if (body.purpose === "ghp-id" && !folderId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "GHP valid-ID uploads are not configured. Set GHP_ID_UPLOAD_FOLDER_ID to a Google Drive folder ID, then redeploy the portal.",
+        },
+        { status: 500 },
+      );
+    }
+
     if (!fileName || !mimeType || !folderId) {
       return NextResponse.json(
         {
