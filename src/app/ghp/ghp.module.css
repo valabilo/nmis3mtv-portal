@@ -114,7 +114,9 @@
 .appointmentCard h2 { color: var(--green); margin-bottom: 18px; }
 .appointmentForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .appointmentForm label { display: grid; gap: 7px; color: var(--gray-700); font-size: .9rem; font-weight: 700; }
-.appointmentForm input, .appointmentForm textarea { border: 1px solid var(--gray-200); border-radius: 6px; padding: 10px 12px; font: inherit; font-weight: 400; }
+.appointmentForm input, .appointmentForm textarea, .appointmentForm select { border: 1px solid var(--gray-200); border-radius: 6px; padding: 10px 12px; font: inherit; font-weight: 400; }
+.appointmentForm .invalid { border-color: #b42318; box-shadow: 0 0 0 1px #b42318; }
+.appointmentForm small { color: var(--gray-600); font-size: .78rem; font-weight: 400; }
 .fullWidth { grid-column: 1 / -1; }
 .appointmentForm > button { justify-self: start; }
 .success { background: var(--green-pale); border: 1px solid rgba(26, 92, 50, .2); border-radius: 7px; color: var(--green-deep); line-height: 1.6; padding: 18px; }

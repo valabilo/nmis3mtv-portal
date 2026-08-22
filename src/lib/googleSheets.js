@@ -292,6 +292,11 @@ const GHP_APPOINTMENT_HEADERS = [
   "name",
   "email",
   "contact",
+  "company_name",
+  "position",
+  "meat_establishment",
+  "valid_id_file_id",
+  "valid_id_file_name",
   "preferred_date",
   "remarks",
   "status",
@@ -316,7 +321,7 @@ export async function createGHPAppointment(data) {
   const seminarVenue = data.seminarVenue || data.seminar_venue || OFFICE_INFO.address;
 
   await appendRow("GHP_Appointments", [
-    appointmentId, requestedAt, data.name, data.email, data.contact || "",
+    appointmentId, requestedAt, data.name, data.email, data.contact || "", data.companyName || "", data.position || "", data.meatEstablishment || "", data.validIdFileId || "", data.validIdFileName || "",
     data.seminarDate || "", data.remarks || "", "Scheduled", data.seminarDate || "", data.seminarTime || "", "", "", "", "", "", "", "", "", "", "", "",
   ]);
   return {

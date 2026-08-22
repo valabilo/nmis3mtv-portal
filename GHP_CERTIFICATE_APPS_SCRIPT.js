@@ -105,15 +105,19 @@ function reserveGhpAppointment_(payload) {
     var rows = sheet.getDataRange().getValues();
     if (!rows.length) throw new Error("GHP_Appointments is missing its header row.");
     var headers = headerMap_(rows[0]);
-    ["appointment_id", "name", "email", "contact", "remarks", "status", "seminar_date", "seminar_time"].forEach(function(header) {
+    ["appointment_id", "name", "email", "contact", "company_name", "position", "meat_establishment", "valid_id_file_id", "valid_id_file_name", "remarks", "status", "seminar_date", "seminar_time"].forEach(function(header) {
       if (headers[header] === undefined) throw new Error("GHP_Appointments is missing the " + header + " column.");
     });
+    for (var existingRow = 1; existingRow < rows.length; existingRow++) {
+      if (String(rows[existingRow][headers.appointment_id] || "") !== String(payload.appointmentId || "")) continue;
+      return rowObject_(rows[0], rows[existingRow]);
+    }
     if (hasActiveCertificateForEmail_(payload.email)) {
       throw new Error("You already have an active GHP certificate. You may book another seminar after your current certificate expires.");
     }
     var booked = 0;
     for (var i = 1; i < rows.length; i++) {
-      if (String(rows[i][headers.seminar_date] || "") === payload.seminarDate && String(rows[i][headers.seminar_time] || "") === payload.seminarTime && ["Cancelled", "Failed"].indexOf(String(rows[i][headers.status] || "")) === -1) booked++;
+      if (String(rows[i][headers.seminar_date] || "") === payload.seminarDate && String(rows[i][headers.seminar_time] || "") === payload.seminarTime && ["Cancelled", "Failed", "Not yet passed"].indexOf(String(rows[i][headers.status] || "")) === -1) booked++;
     }
     if (booked >= 30) throw new Error("That seminar is already full. Please choose another schedule.");
     var now = new Date().toISOString();
@@ -124,6 +128,11 @@ function reserveGhpAppointment_(payload) {
         case "name": return payload.name;
         case "email": return payload.email;
         case "contact": return payload.contact || "";
+        case "company_name": return payload.companyName || "";
+        case "position": return payload.position || "";
+        case "meat_establishment": return payload.meatEstablishment || "";
+        case "valid_id_file_id": return payload.validIdFileId || "";
+        case "valid_id_file_name": return payload.validIdFileName || "";
         case "remarks": return payload.remarks || "";
         case "status": return "Scheduled";
         case "seminar_date": return payload.seminarDate;
@@ -132,28 +141,32 @@ function reserveGhpAppointment_(payload) {
       }
     });
     sheet.appendRow(values);
-    return { appointment_id: payload.appointmentId, requested_at: now, name: payload.name, email: payload.email, contact: payload.contact || "", remarks: payload.remarks || "", status: "Scheduled", seminar_date: payload.seminarDate, seminar_time: payload.seminarTime };
+    return { appointment_id: payload.appointmentId, requested_at: now, name: payload.name, email: payload.email, contact: payload.contact || "", company_name: payload.companyName || "", position: payload.position || "", meat_establishment: payload.meatEstablishment || "", valid_id_file_id: payload.validIdFileId || "", valid_id_file_name: payload.validIdFileName || "", remarks: payload.remarks || "", status: "Scheduled", seminar_date: payload.seminarDate, seminar_time: payload.seminarTime };
   } finally {
     lock.releaseLock();
   }
 }
 
-// A certificate is active through its expiry date. This check runs while the
-// booking lock is held, so every booking path consistently applies the rule.
+// A user may only be prevented from booking by an issued, passing certificate
+// that is still valid. In particular, a passed result or an incomplete row in
+// Certificate Issuance must not prevent a new seminar booking. This check runs
+// while the booking lock is held, so every booking path consistently applies
+// the rule.
 function hasActiveCertificateForEmail_(email) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
   if (!sheet || sheet.getLastRow() < 2) return false;
   var rows = sheet.getDataRange().getValues();
   var headers = headerMap_(rows[0] || []);
-  if (headers.email === undefined || headers.expiry_date === undefined) return false;
+  if (headers.control_no === undefined || headers.email === undefined || headers.status === undefined || headers.expiry_date === undefined) return false;
   var candidate = String(email || "").trim().toLowerCase();
   if (!candidate) return false;
   var today = new Date(); today.setHours(0, 0, 0, 0);
   for (var i = 1; i < rows.length; i++) {
     if (String(rows[i][headers.email] || "").trim().toLowerCase() !== candidate) continue;
+    var controlNo = String(rows[i][headers.control_no] || "").trim();
     var status = String(rows[i][headers.status] || "").trim().toUpperCase();
     var expiry = new Date(rows[i][headers.expiry_date]); expiry.setHours(0, 0, 0, 0);
-    if (status === "PASSED" && !isNaN(expiry.getTime()) && expiry >= today) return true;
+    if (controlNo && status === "PASSED" && !isNaN(expiry.getTime()) && expiry >= today) return true;
   }
   return false;
 }
@@ -173,7 +186,7 @@ function recordGhpResult_(payload) {
     var passed = score >= 7, controlNo = String(rows[row][headers.certificate_number] || "").trim();
     if (passed && !controlNo) controlNo = nextControlNumber_(rows, headers);
     var now = new Date().toISOString();
-    rows[row][headers.status] = passed ? "Passed" : "Failed";
+    rows[row][headers.status] = passed ? "Passed" : "Not yet passed";
     rows[row][headers.exam_result] = passed ? "PASSED" : "FAILED";
     rows[row][headers.exam_score] = score + "/10";
     rows[row][headers.exam_recorded_at] = now;

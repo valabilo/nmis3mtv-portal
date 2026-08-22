@@ -14,22 +14,33 @@ async function reserveSeat(payload) {
   const webAppUrl = process.env.GHP_BOOKING_WEB_APP_URL?.trim();
   const secret = process.env.GHP_BOOKING_SECRET?.trim();
   if (!webAppUrl || !secret) throw new Error("GHP seat reservation is not configured. Set GHP_BOOKING_WEB_APP_URL and GHP_BOOKING_SECRET.");
-  const response = await fetch(webAppUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, action: "reserveGhpAppointment", secret }),
-    cache: "no-store",
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.success) throw new Error(result.error || "Unable to reserve the seminar seat.");
-  return result.appointment;
+  let lastError;
+  // The Apps Script treats appointmentId as an idempotency key. Retrying with
+  // it prevents a connection failure after a successful write from creating a
+  // second reservation or showing the applicant a false failure.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(webAppUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, action: "reserveGhpAppointment", secret }),
+        cache: "no-store",
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.error || "Unable to reserve the seminar seat.");
+      return result.appointment;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 export async function GET() {
   try {
     const appointments = await getGHPAppointments();
     const schedules = getGHPSeminarDates().map((date) => {
-      const active = appointments.filter((item) => item.seminar_date === date && !["Cancelled", "Failed"].includes(item.status));
+      const active = appointments.filter((item) => item.seminar_date === date && !["Cancelled", "Failed", "Not yet passed"].includes(item.status));
       const sessions = SEMINAR_SESSIONS.map((session) => {
         const booked = active.filter((item) => item.seminar_time === session.id).length;
         return { ...session, capacity: SEMINAR_CAPACITY, booked, available: Math.max(SEMINAR_CAPACITY - booked, 0) };
@@ -48,14 +59,19 @@ export async function POST(request) {
     const name = clean(body.name);
     const email = clean(body.email).toLowerCase();
     const contact = clean(body.contact, 80);
+    const companyName = clean(body.companyName, 150);
+    const position = clean(body.position, 50);
+    const meatEstablishment = clean(body.meatEstablishment, 150);
+    const validIdFileId = clean(body.validIdFileId, 200);
+    const validIdFileName = clean(body.validIdFileName, 200);
     const seminarDate = clean(body.seminarDate, 20);
     const seminarTime = clean(body.seminarTime, 20);
-    if (!validateName(name) || !validateEmail(email) || !/^\d{4}-\d{2}-\d{2}$/.test(seminarDate) || !SEMINAR_SESSIONS.some((session) => session.id === seminarTime)) {
-      return NextResponse.json({ success: false, error: "Please provide a valid full name, email address, seminar date, and session time." }, { status: 400 });
+    if (!validateName(name) || !validateEmail(email) || !contact || !companyName || !position || !meatEstablishment || !validIdFileId || !validIdFileName || !/^\d{4}-\d{2}-\d{2}$/.test(seminarDate) || !SEMINAR_SESSIONS.some((session) => session.id === seminarTime)) {
+      return NextResponse.json({ success: false, error: "Complete all required fields, upload a valid ID, and select a seminar date and session time." }, { status: 400 });
     }
     if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
     const appointment = await reserveSeat({
-      appointmentId: uuidv4(), name, email, contact, seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address, remarks: clean(body.remarks),
+      appointmentId: clean(body.appointmentId, 100) || uuidv4(), name, email, contact, companyName, position, meatEstablishment, validIdFileId, validIdFileName, seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address, remarks: clean(body.remarks),
     });
     try {
       await sendGHPSeminarNotification({ ...appointment, seminar_venue: appointment.seminar_venue || OFFICE_INFO.address });

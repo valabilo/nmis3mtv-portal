@@ -67,7 +67,7 @@ export async function PATCH(request) {
       const appointment = appointments.find((item) => appointmentId ? item.appointment_id === appointmentId : clean(item.email).toLowerCase() === email);
       if (!appointment) { skipped += 1; errors.push(`No appointment found for ${appointmentId || email || `Manual Entries row ${entry._rowNumber}`}.`); continue; }
       const record = await updateGHPAppointment(appointment.appointment_id, {
-        status: result === "PASSED" ? "Passed" : "Failed", exam_result: result,
+        status: result === "PASSED" ? "Passed" : "Not yet passed", exam_result: result,
         exam_score: clean(entry.score || entry.exam_score), exam_recorded_at: clean(entry.exam_date) || new Date().toISOString(),
         certificate_number: result === "PASSED" ? clean(entry.certificate_number || entry.cert_number) : "",
       });

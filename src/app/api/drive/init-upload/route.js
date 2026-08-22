@@ -28,7 +28,9 @@ function getOAuth2Client() {
 
 export async function POST(request) {
   try {
-    const { fileName, mimeType, folderId, fileSize } = await request.json();
+    const body = await request.json();
+    const { fileName, mimeType, fileSize } = body;
+    const folderId = body.purpose === "ghp-id" ? process.env.GHP_ID_UPLOAD_FOLDER_ID : body.folderId;
 
     if (!fileName || !mimeType || !folderId) {
       return NextResponse.json(
