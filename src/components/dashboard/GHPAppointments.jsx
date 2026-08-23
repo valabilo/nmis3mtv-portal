@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styles from "./GHPAppointments.module.css";
+import { formatSeminarTime } from "@/lib/seminarTime";
 
 const POPUP_VISIBLE_MS = 10000;
 const fmt = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "short", day: "numeric" }) : "Unscheduled";
@@ -165,7 +166,7 @@ export default function GHPAppointments() {
             return <tr key={item.appointment_id} onDoubleClick={() => { if (!disabled && passed(item) && item.certificate_ready) toggleCertificateSelection(item.appointment_id); }}>
               <td>{passed(item) && item.certificate_ready ? <input type="checkbox" disabled={disabled} checked={selected.includes(item.appointment_id)} onChange={() => toggleCertificateSelection(item.appointment_id)} /> : "—"}</td>
               <td>{nameEdit ? <div className={styles.nameField}><input disabled={disabled} value={name} onChange={(event) => setName(event.target.value)} autoFocus /><button className={styles.saveButton} disabled={disabled} onClick={() => rename(item)}>{saving === item.appointment_id ? "Saving…" : "Save name"}</button><button className={styles.cancelButton} disabled={disabled} onClick={() => setEditing("")}>Cancel</button></div> : <><strong>{item.name}</strong><span>{item.email}{item.contact ? ` · ${item.contact}` : ""}</span><span>{[item.company_name, item.position, item.meat_establishment].filter(Boolean).join(" · ")}</span>{item.valid_id_file_id && <a href={`https://drive.google.com/open?id=${encodeURIComponent(item.valid_id_file_id)}`} target="_blank" rel="noreferrer">View valid ID</a>}</>}</td>
-              <td>{item.seminar_time || "—"}</td>
+              <td>{item.seminar_time ? formatSeminarTime(item.seminar_time) : "—"}</td>
               <td>{scoreEdit ? <div className={styles.scoreField}><input className={styles.scoreInput} disabled={disabled} type="number" min="1" max="10" step="1" value={scores[item.appointment_id] ?? ""} onChange={(event) => setScores((all) => ({ ...all, [item.appointment_id]: event.target.value }))} autoFocus /><button className={styles.saveButton} disabled={disabled} onClick={() => saveScore(item)}>{saving === item.appointment_id ? "Saving…" : "Save"}</button><button className={styles.cancelButton} disabled={disabled} onClick={() => setEditing("")}>Cancel</button></div> : item.exam_score || "—"}</td>
               <td>{item.exam_result === "PASSED" ? "Passed" : item.exam_result === "FAILED" ? "Not yet passed" : "Not recorded"}</td>
               <td><details className={styles.rowMenu}><summary aria-label={`Actions for ${item.name}`}>⋮</summary><div className={styles.menuPanel}>

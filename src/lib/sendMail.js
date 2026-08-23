@@ -5,6 +5,7 @@
 
 import nodemailer from "nodemailer";
 import { OFFICE_INFO } from "@/lib/constants";
+import { formatSeminarTime } from "@/lib/seminarTime";
 import {
   generateOrderOfPaymentPdf,
   orderOfPaymentFilename,
@@ -554,10 +555,11 @@ export async function sendGHPSeminarNotification(record) {
   const transport = getTransporter();
   const date = new Date(`${record.seminar_date}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
   const venue = record.seminar_venue || record.seminarVenue || OFFICE_INFO.address;
+  const time = formatSeminarTime(record.seminar_time);
   return transport.sendMail({
     from: getDefaultSender(), to: formatMailAddress(record.name, record.email),
     subject: "GHP Seminar Appointment Confirmation",
-    html: `${EMAIL_CSS}<div class="email-shell" style="${shellStyle(600)}"><div class="email-header" style="${headerStyle}"><h1 class="email-title" style="${titleStyle}">Your GHP Seminar is Scheduled</h1></div><div class="email-body" style="${bodyStyle}"><p>Dear <strong>${record.name}</strong>,</p><p>Your Good Hygienic Practices (GHP) seminar appointment has been scheduled.</p><table style="${tableStyle}"><tr><td>Date</td><td><strong>${date}</strong></td></tr><tr><td>Time</td><td><strong>${record.seminar_time || "To be advised"}</strong></td></tr><tr><td>Venue</td><td><strong>${venue}</strong></td></tr>${record.meeting_link ? `<tr><td>Online link</td><td><a href="${record.meeting_link}">Join seminar</a></td></tr>` : ""}</table><p>Please keep this email and arrive on time. Your certificate will be issued after attendance is confirmed.</p><p>Best regards,<br/><strong>NMIS RTOC III</strong></p></div></div>`,
+    html: `${EMAIL_CSS}<div class="email-shell" style="${shellStyle(600)}"><div class="email-header" style="${headerStyle}"><h1 class="email-title" style="${titleStyle}">Your GHP Seminar is Scheduled</h1></div><div class="email-body" style="${bodyStyle}"><p>Dear <strong>${record.name}</strong>,</p><p>Your Good Hygienic Practices (GHP) seminar appointment has been scheduled.</p><table style="${tableStyle}"><tr><td>Date</td><td><strong>${date}</strong></td></tr><tr><td>Time</td><td><strong>${time}</strong></td></tr><tr><td>Venue</td><td><strong>${venue}</strong></td></tr>${record.meeting_link ? `<tr><td>Online link</td><td><a href="${record.meeting_link}">Join seminar</a></td></tr>` : ""}</table><p>Please keep this email and arrive on time. Your certificate will be issued after attendance is confirmed.</p><p>Best regards,<br/><strong>NMIS RTOC III</strong></p></div></div>`,
   });
 }
 

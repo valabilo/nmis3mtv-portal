@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/hooks/useToast";
 import Toast from "@/components/ui/Toast";
 import { isValidEmail } from "@/lib/utils";
+import { formatSeminarTime } from "@/lib/seminarTime";
 import styles from "./ghp.module.css";
 
 const fmt = (value) =>
@@ -305,7 +306,7 @@ export default function GHPPage() {
               <div className={styles.success}>
                 Your booking has been received for{" "}
                 <strong>
-                  {fmt(booking.seminar_date)}, {booking.seminar_time}
+                  {fmt(booking.seminar_date)}, {formatSeminarTime(booking.seminar_time)}
                 </strong>
                 .{" "}
                 {emailSent
