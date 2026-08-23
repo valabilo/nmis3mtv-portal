@@ -76,6 +76,7 @@ export default function GHPPage() {
   const [schedules, setSchedules] = useState([]);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [booking, setBooking] = useState(null);
   const [emailSent, setEmailSent] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeDate, setActiveDate] = useState("");
@@ -219,6 +220,7 @@ export default function GHPPage() {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error);
       setEmailSent(data.emailSent !== false);
+      setBooking(data.appointment);
       setSubmitted(true);
       showToast(
         data.warning ||
@@ -303,12 +305,7 @@ export default function GHPPage() {
               <div className={styles.success}>
                 Your booking has been received for{" "}
                 <strong>
-                  {fmt(form.seminarDate)},{" "}
-                  {
-                    selectedSchedule?.sessions.find(
-                      (session) => session.id === form.seminarTime,
-                    )?.label
-                  }
+                  {fmt(booking.seminar_date)}, {booking.seminar_time}
                 </strong>
                 .{" "}
                 {emailSent

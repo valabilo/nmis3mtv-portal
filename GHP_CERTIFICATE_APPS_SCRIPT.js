@@ -112,8 +112,8 @@ function reserveGhpAppointment_(payload) {
       if (String(rows[existingRow][headers.appointment_id] || "") !== String(payload.appointmentId || "")) continue;
       return rowObject_(rows[0], rows[existingRow]);
     }
-    if (hasActiveCertificateForEmail_(payload.email)) {
-      throw new Error("You already have an active GHP certificate. You may book another seminar after your current certificate expires.");
+    if (hasActiveCertificateForName_(payload.name)) {
+      throw new Error("You already have an active GHP certificate under this name. You may book another seminar after your current certificate expires.");
     }
     var booked = 0;
     for (var i = 1; i < rows.length; i++) {
@@ -148,27 +148,36 @@ function reserveGhpAppointment_(payload) {
 }
 
 // A user may only be prevented from booking by an issued, passing certificate
-// that is still valid. In particular, a passed result or an incomplete row in
-// Certificate Issuance must not prevent a new seminar booking. This check runs
-// while the booking lock is held, so every booking path consistently applies
-// the rule.
-function hasActiveCertificateForEmail_(email) {
+// under the same normalized name that is still valid. Email is deliberately
+// not used for this rule: shared email addresses must not stop a different
+// person from booking. Incomplete issuance rows must not prevent a booking.
+function hasActiveCertificateForName_(name) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.issuanceSheetName);
   if (!sheet || sheet.getLastRow() < 2) return false;
   var rows = sheet.getDataRange().getValues();
   var headers = headerMap_(rows[0] || []);
-  if (headers.control_no === undefined || headers.email === undefined || headers.status === undefined || headers.expiry_date === undefined) return false;
-  var candidate = String(email || "").trim().toLowerCase();
+  if (headers.control_no === undefined || headers.name === undefined || headers.status === undefined || headers.expiry_date === undefined) return false;
+  var candidate = normalizeName_(name);
   if (!candidate) return false;
   var today = new Date(); today.setHours(0, 0, 0, 0);
   for (var i = 1; i < rows.length; i++) {
-    if (String(rows[i][headers.email] || "").trim().toLowerCase() !== candidate) continue;
+    if (normalizeName_(rows[i][headers.name]) !== candidate) continue;
     var controlNo = String(rows[i][headers.control_no] || "").trim();
     var status = String(rows[i][headers.status] || "").trim().toUpperCase();
     var expiry = new Date(rows[i][headers.expiry_date]); expiry.setHours(0, 0, 0, 0);
     if (controlNo && status === "PASSED" && !isNaN(expiry.getTime()) && expiry >= today) return true;
   }
   return false;
+}
+
+function normalizeName_(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 // Saves the score, assigns the next sequential control number, and creates the
