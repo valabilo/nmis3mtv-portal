@@ -23,6 +23,7 @@ export default function GHPAppointments() {
   const [name, setName] = useState("");
   const [selected, setSelected] = useState([]);
   const [downloading, setDownloading] = useState(false);
+  const [specialEntry, setSpecialEntry] = useState({ name: "", email: "", contact: "", companyName: "", position: "", meatEstablishment: "", remarks: "" });
 
   const dates = useMemo(() => [...new Set(items.map((item) => item.seminar_date || ""))].sort(), [items]);
   const sessions = useMemo(() => [...new Set(items.filter((item) => item.seminar_date === date).map((item) => item.seminar_time || "Unscheduled"))].sort(), [items, date]);
@@ -138,6 +139,42 @@ export default function GHPAppointments() {
     finally { setDownloading(false); }
   }
 
+  async function downloadAttendance() {
+    if (!session) return setMessage("Select one session before downloading its attendance sheet.");
+    setDownloading(true);
+    try {
+      const response = await fetch(`/api/admin/ghp/attendance?date=${encodeURIComponent(date)}&session=${encodeURIComponent(session)}`);
+      if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || "Attendance sheet download failed."); }
+      const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a");
+      link.href = url; link.download = `NMIS_GHP_Attendance_${date}_${session}.pdf`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    } catch (error) { setMessage(error.message || "Attendance sheet download failed."); }
+    finally { setDownloading(false); }
+  }
+
+  async function sendLowAttendanceEmail() {
+    if (!session) return setMessage("Select one session before sending a low-attendance email.");
+    if (attendees.length >= 10) return setMessage("This session has 10 or more attendees, so no low-attendance email can be sent.");
+    if (!attendees.length || !window.confirm(`Send the low-attendance notice to ${attendees.length} attendee${attendees.length === 1 ? "" : "s"}?`)) return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/ghp", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "send-low-attendance-email", seminarDate: date, seminarTime: session }) });
+      const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error); setMessage(data.message);
+    } catch (error) { setMessage(error.message || "Unable to send the low-attendance email."); }
+    finally { setBusy(false); }
+  }
+
+  async function addSpecialAttendee(event) {
+    event.preventDefault();
+    if (!date || !session) return setMessage("Select the seminar date and session for this special registration.");
+    setBusy(true);
+    try {
+      const response = await fetch("/api/admin/ghp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add-special-attendee", ...specialEntry, seminarDate: date, seminarTime: session }) });
+      const data = await response.json(); if (!response.ok || !data.success) throw new Error(data.error);
+      setItems((all) => [data.appointment, ...all]); setSpecialEntry({ name: "", email: "", contact: "", companyName: "", position: "", meatEstablishment: "", remarks: "" }); setMessage("Special-case attendee added to the selected session.");
+    } catch (error) { setMessage(error.message || "Unable to add special-case attendee."); }
+    finally { setBusy(false); }
+  }
+
   function toggleCertificateSelection(id) {
     setSelected((all) => all.includes(id) ? all.filter((selectedId) => selectedId !== id) : [...all, id]);
   }
@@ -156,9 +193,11 @@ export default function GHPAppointments() {
         <label className={styles.dateSelect}>Session time<select disabled={disabled} value={session} onChange={(event) => setSession(event.target.value)}><option value="">All sessions</option>{sessions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
         <label className={styles.search}>Search attendee name<input disabled={disabled} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter attendee name" /></label>
       </div>
+      <details className={styles.specialEntry}><summary>Add special-case attendee</summary><form onSubmit={addSpecialAttendee}><p>For administrator use after the Friday 7:00 AM public-registration cutoff. Select one session above first.</p><div><input required placeholder="Full name *" value={specialEntry.name} onChange={(event) => setSpecialEntry((current) => ({ ...current, name: event.target.value }))} /><input required type="email" placeholder="Email address *" value={specialEntry.email} onChange={(event) => setSpecialEntry((current) => ({ ...current, email: event.target.value }))} /><input placeholder="Contact number" value={specialEntry.contact} onChange={(event) => setSpecialEntry((current) => ({ ...current, contact: event.target.value }))} /><input placeholder="Company / trucking" value={specialEntry.companyName} onChange={(event) => setSpecialEntry((current) => ({ ...current, companyName: event.target.value }))} /><input placeholder="Position" value={specialEntry.position} onChange={(event) => setSpecialEntry((current) => ({ ...current, position: event.target.value }))} /><input placeholder="Meat establishment" value={specialEntry.meatEstablishment} onChange={(event) => setSpecialEntry((current) => ({ ...current, meatEstablishment: event.target.value }))} /></div><textarea placeholder="Reason / remarks (optional)" value={specialEntry.remarks} onChange={(event) => setSpecialEntry((current) => ({ ...current, remarks: event.target.value }))} /><button className={styles.primary} disabled={disabled || !session}>{busy ? "Adding…" : "Add attendee"}</button></form></details>
       <div className={styles.batch}>
         <div className={styles.batchHeader}><div><span>Selected seminar</span><h3>{fmt(date)}{session ? ` · ${session}` : ""}</h3></div><strong>{attendees.length} attendee{attendees.length === 1 ? "" : "s"}</strong></div>
         {selectable.length > 0 && <div className={styles.certificateActions}><label><input type="checkbox" disabled={disabled} checked={selected.length === selectable.length} onChange={(event) => setSelected(event.target.checked ? selectable.map((item) => item.appointment_id) : [])} /> Select all passed examinees</label><button disabled={!selected.length || disabled} onClick={downloadSelected}>{downloading ? "Downloading…" : `Download selected (${selected.length})`}</button></div>}
+        <div className={styles.sessionActions}><button disabled={disabled || !session || !attendees.length} onClick={downloadAttendance}>{downloading ? "Downloading…" : "Download attendance sheet"}</button><button disabled={disabled || !session || !attendees.length || attendees.length >= 10} onClick={sendLowAttendanceEmail}>Email low-attendance notice</button>{session && attendees.length >= 10 && <span>Low-attendance email is available only below 10 attendees.</span>}</div>
         <div className={styles.tableWrap}><table className={styles.attendeeTable}><thead><tr><th>Certificate</th><th>Client</th><th>Session</th><th>Score / 10</th><th>Result</th><th>Actions</th></tr></thead><tbody>
           {attendees.map((item) => {
             const scoreEdit = editing === item.appointment_id;

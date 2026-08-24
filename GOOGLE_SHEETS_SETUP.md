@@ -20,6 +20,10 @@ To use the Google Slides certificate template, replace the bound Apps Script pro
 
 The same bound Apps Script also reserves seminar seats under a shared lock, so the final available seat is assigned only to the first completed booking request. In Apps Script **Project Settings**, add a script property named `GHP_BOOKING_SECRET` with a long random value. Then deploy the project as a **Web app** (execute as the spreadsheet owner; access: anyone), copy its `/exec` URL to `GHP_BOOKING_WEB_APP_URL`, and put the same secret in `GHP_BOOKING_SECRET` in the portal's Vercel environment variables. Redeploy the portal after saving those variables.
 
+Public bookings close at **7:00 AM, Asia/Manila, on each Friday seminar date**. The dashboard's **Add special-case attendee** control remains available to administrators after that cutoff, but it still observes the session's 30-seat limit. After updating `GHP_CERTIFICATE_APPS_SCRIPT.js`, deploy a new version of the Apps Script web app; otherwise the admin override will not be available.
+
+For a selected session, the dashboard can download a printable attendance sheet with a signature column. When a session has fewer than 10 attendees, the dashboard can also send a BCC low-attendance notice to all attendees in that session.
+
 The reservation endpoint also rejects a booking when the same email address has a passing certificate in `Certificate Issuance` whose `expiry_date` is today or later. This prevents duplicate bookings during the certificate's one-year validity period.
 
 ## Step 1: Set Up Google Sheets Structure

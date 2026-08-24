@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { OFFICE_INFO } from "@/lib/constants";
 import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
-import { getGHPSeminarDates, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
+import { getGHPSeminarDates, isGHPRegistrationOpen, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
 import { sendGHPSeminarNotification } from "@/lib/sendMail";
 
@@ -45,7 +45,9 @@ export async function GET() {
         const booked = active.filter((item) => item.seminar_time === session.id).length;
         return { ...session, capacity: SEMINAR_CAPACITY, booked, available: Math.max(SEMINAR_CAPACITY - booked, 0) };
       });
-      return { date, sessions, available: sessions.reduce((total, session) => total + session.available, 0) };
+      const registrationOpen = isGHPRegistrationOpen(date);
+      const visibleSessions = sessions.map((session) => ({ ...session, available: registrationOpen ? session.available : 0 }));
+      return { date, sessions: visibleSessions, available: visibleSessions.reduce((total, session) => total + session.available, 0), registrationOpen };
     });
     return NextResponse.json({ success: true, schedules });
   } catch (error) {
@@ -70,6 +72,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Complete all required fields, upload a valid ID, and select a seminar date and session time." }, { status: 400 });
     }
     if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
+    if (!isGHPRegistrationOpen(seminarDate)) return NextResponse.json({ success: false, error: "Online registration for this Friday seminar closed at 7:00 AM. Please contact NMIS for special cases." }, { status: 403 });
     const appointment = await reserveSeat({
       appointmentId: clean(body.appointmentId, 100) || uuidv4(), name, email, contact, companyName, position, meatEstablishment, validIdFileId, validIdFileName, seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address, remarks: clean(body.remarks),
     });

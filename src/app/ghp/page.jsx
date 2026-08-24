@@ -294,6 +294,7 @@ export default function GHPPage() {
                 Only highlighted dates are seminar days. Sessions are
                 first-come, first-served.
               </li>
+              <li>Online registration closes at 7:00 AM on Friday seminar days.</li>
               <li>
                 Certificates are printed and signed manually by NMIS after a
                 passing result.

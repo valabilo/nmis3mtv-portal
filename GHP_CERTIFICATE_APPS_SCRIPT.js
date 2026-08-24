@@ -32,6 +32,7 @@ function doPost(e) {
     var secret = PropertiesService.getScriptProperties().getProperty("GHP_BOOKING_SECRET");
     if (!secret || payload.secret !== secret) throw new Error("Unauthorized request.");
     if (payload.action === "reserveGhpAppointment") return jsonResponse_({ success: true, appointment: reserveGhpAppointment_(payload) });
+    if (payload.action === "adminAddGhpAppointment") return jsonResponse_({ success: true, appointment: reserveGhpAppointment_(payload, true) });
     if (payload.action === "recordGhpResult") return jsonResponse_({ success: true, appointment: recordGhpResult_(payload) });
     if (payload.action === "renameGhpAttendee") return jsonResponse_({ success: true, appointment: renameGhpAttendee_(payload) });
     throw new Error("Unsupported request.");
@@ -96,7 +97,7 @@ function sendCertificates() {
   }
 }
 
-function reserveGhpAppointment_(payload) {
+function reserveGhpAppointment_(payload, adminOverride) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw new Error("The booking system is busy. Please try again.");
   try {
@@ -114,6 +115,9 @@ function reserveGhpAppointment_(payload) {
     }
     if (hasActiveCertificateForName_(payload.name)) {
       throw new Error("You already have an active GHP certificate under this name. You may book another seminar after your current certificate expires.");
+    }
+    if (!adminOverride && isPastGhpRegistrationDeadline_(payload.seminarDate)) {
+      throw new Error("Online registration for this Friday seminar closed at 7:00 AM. Please contact NMIS for special cases.");
     }
     var booked = 0;
     for (var i = 1; i < rows.length; i++) {
@@ -145,6 +149,17 @@ function reserveGhpAppointment_(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function isPastGhpRegistrationDeadline_(seminarDate) {
+  var date = String(seminarDate || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return true;
+  var timezone = Session.getScriptTimeZone();
+  var now = new Date();
+  var currentDate = Utilities.formatDate(now, timezone, "yyyy-MM-dd");
+  if (currentDate < date) return false;
+  if (currentDate > date) return true;
+  return Number(Utilities.formatDate(now, timezone, "H")) >= 7;
 }
 
 // A user may only be prevented from booking by an issued, passing certificate

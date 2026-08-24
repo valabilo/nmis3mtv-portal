@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
-import { sendGHPExamResult } from "@/lib/sendMail";
+import { sendGHPExamResult, sendGHPLowAttendanceNotice } from "@/lib/sendMail";
+import { isGHPSeminarDate, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
+import { OFFICE_INFO } from "@/lib/constants";
+import { validateEmail, validateName } from "@/lib/validators";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +60,17 @@ export async function PATCH(request) {
       const appointment = await callGhpCertificateService({ action: "renameGhpAttendee", appointmentId, name });
       return NextResponse.json({ success: true, appointment });
     }
+    if (body.action === "send-low-attendance-email") {
+      const seminarDate = clean(body.seminarDate);
+      const seminarTime = clean(body.seminarTime);
+      if (!isGHPSeminarDate(seminarDate) || !SEMINAR_SESSIONS.some((item) => item.id === seminarTime)) return NextResponse.json({ success: false, error: "Select a valid seminar session." }, { status: 400 });
+      const appointments = await getGHPAppointments();
+      const attendees = appointments.filter((item) => item.seminar_date === seminarDate && item.seminar_time === seminarTime && !["Cancelled", "Failed", "Not yet passed"].includes(item.status) && validateEmail(clean(item.email)));
+      if (attendees.length >= 10) return NextResponse.json({ success: false, error: "This email is only available when the session has fewer than 10 attendees." }, { status: 400 });
+      if (!attendees.length) return NextResponse.json({ success: false, error: "There are no attendees with valid email addresses in this session." }, { status: 400 });
+      await sendGHPLowAttendanceNotice(attendees, { seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address });
+      return NextResponse.json({ success: true, message: `Low-attendance notice sent to ${attendees.length} attendee${attendees.length === 1 ? "" : "s"}.` });
+    }
     if (body.action !== "sync-manual-results") return NextResponse.json({ success: false, error: "Unsupported GHP action." }, { status: 400 });
     const [appointments, entries] = await Promise.all([getGHPAppointments(), getGHPManualEntries()]);
     let notified = 0; let skipped = 0; const errors = [];
@@ -89,6 +103,18 @@ export async function POST(request) {
   if (!requestHasDashboardSession(request)) return unauthorized();
   try {
     const body = await request.json();
+    if (body.action === "add-special-attendee") {
+      const name = clean(body.name); const email = clean(body.email).toLowerCase();
+      const seminarDate = clean(body.seminarDate); const seminarTime = clean(body.seminarTime);
+      if (!validateName(name) || !validateEmail(email) || !isGHPSeminarDate(seminarDate) || !SEMINAR_SESSIONS.some((item) => item.id === seminarTime)) return NextResponse.json({ success: false, error: "Enter a valid name, email, seminar date, and session." }, { status: 400 });
+      const appointment = await callGhpCertificateService({
+        action: "adminAddGhpAppointment", appointmentId: crypto.randomUUID(), name, email,
+        contact: clean(body.contact), companyName: clean(body.companyName), position: clean(body.position), meatEstablishment: clean(body.meatEstablishment),
+        validIdFileId: "", validIdFileName: "", seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address,
+        remarks: `Admin special-case registration${clean(body.remarks) ? `: ${clean(body.remarks)}` : ""}`,
+      });
+      return NextResponse.json({ success: true, appointment });
+    }
     const appointmentId = clean(body.appointmentId); const score = clean(body.score); const numericScore = Number(score);
     if (!appointmentId || !/^(?:[1-9]|10)$/.test(score) || numericScore < 1 || numericScore > 10) return NextResponse.json({ success: false, error: "Enter a whole-number score from 1 to 10." }, { status: 400 });
     const appointments = await getGHPAppointments();

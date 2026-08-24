@@ -28,6 +28,20 @@ function isFriday(date) {
   return new Date(`${date}T00:00:00Z`).getUTCDay() === 5;
 }
 
+/** Public bookings close at 7:00 AM (Asia/Manila) on the seminar date. */
+export function isGHPRegistrationOpen(seminarDate, now = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(seminarDate || ""))) return false;
+  const manila = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hourCycle: "h23", minute: "2-digit",
+  }).formatToParts(now);
+  const value = Object.fromEntries(manila.map(({ type, value: part }) => [type, part]));
+  const currentDate = `${value.year}-${value.month}-${value.day}`;
+  if (currentDate < seminarDate) return true;
+  if (currentDate > seminarDate) return false;
+  return Number(value.hour) < 7;
+}
+
 /** The first seminar is a one-off Thursday; Friday resumes the following week. */
 export function getGHPSeminarDates(count = 12) {
   const firstDate = process.env.GHP_FIRST_SEMINAR_DATE || DEFAULT_FIRST_SEMINAR_DATE;

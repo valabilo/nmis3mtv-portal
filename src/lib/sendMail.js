@@ -563,6 +563,20 @@ export async function sendGHPSeminarNotification(record) {
   });
 }
 
+export async function sendGHPLowAttendanceNotice(records, { seminarDate, seminarTime, seminarVenue }) {
+  const recipients = records.map((record) => formatMailAddress(record.name, record.email)).filter(Boolean);
+  if (!recipients.length) throw new Error("No valid attendee email addresses were found.");
+  const transport = getTransporter();
+  const date = new Date(`${seminarDate}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
+  return transport.sendMail({
+    from: getDefaultSender(),
+    // BCC keeps every attendee's email address private.
+    to: getDefaultSender(), bcc: recipients,
+    subject: "Important: GHP Seminar Session Has Fewer Than 10 Attendees",
+    html: `${EMAIL_CSS}<div class="email-shell" style="${shellStyle(600)}"><div class="email-header" style="${headerStyle}"><h1 class="email-title" style="${titleStyle}">GHP Seminar Session Notice</h1></div><div class="email-body" style="${bodyStyle}"><p>Dear GHP Seminar Participant,</p><p>Your selected GHP seminar session currently has fewer than 10 registered attendees. NMIS is notifying you so that you can coordinate with the office if needed.</p><table style="${tableStyle}"><tr><td>Date</td><td><strong>${date}</strong></td></tr><tr><td>Time</td><td><strong>${formatSeminarTime(seminarTime)}</strong></td></tr><tr><td>Venue</td><td><strong>${seminarVenue || OFFICE_INFO.address}</strong></td></tr></table><p>Please wait for further instructions from NMIS RTOC III before making any changes to your schedule.</p><p>Best regards,<br/><strong>NMIS RTOC III</strong></p></div></div>`,
+  });
+}
+
 export async function sendGHPCertificate(record, pdfBuffer) {
   const transport = getTransporter();
   return transport.sendMail({
