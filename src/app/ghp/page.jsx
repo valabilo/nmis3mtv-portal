@@ -303,6 +303,9 @@ export default function GHPPage() {
           </section>
           <section className={styles.appointmentCard}>
             <h2>Book a GHP seminar schedule</h2>
+            <p className={styles.cutoffNotice}>
+              Public registration is open until 7:00 AM on Friday seminar days.
+            </p>
             {submitted ? (
               <div className={styles.success}>
                 Your booking has been received for{" "}

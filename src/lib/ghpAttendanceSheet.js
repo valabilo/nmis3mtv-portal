@@ -1,4 +1,4 @@
-import PDFDocument from "pdfkit";
+import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 import { formatSeminarTime } from "@/lib/seminarTime";
 import { OFFICE_INFO } from "@/lib/constants";
 
