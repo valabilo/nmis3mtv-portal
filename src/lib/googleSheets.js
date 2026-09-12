@@ -271,6 +271,33 @@ export async function updateRegistrationSettings(settings) {
   return next;
 }
 
+const GHP_REGISTRATION_CLOSURE_HEADERS = [
+  "seminar_date",
+  "seminar_time",
+  "closed",
+  "updated_at",
+];
+
+export async function getGHPRegistrationClosures() {
+  await ensureHeaders("GHP Registration Closures", GHP_REGISTRATION_CLOSURE_HEADERS);
+  return readSheet("GHP Registration Closures");
+}
+
+export async function setGHPRegistrationClosure({ seminarDate, seminarTime, closed }) {
+  await ensureHeaders("GHP Registration Closures", GHP_REGISTRATION_CLOSURE_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("GHP Registration Closures");
+  const existing = rows.find((row) => row.seminar_date === seminarDate && row.seminar_time === seminarTime);
+  const next = { seminar_date: seminarDate, seminar_time: seminarTime, closed: closed ? "true" : "false", updated_at: new Date().toISOString() };
+  const values = headers.map((header) => next[header] ?? "");
+  const sheets = getSheetsClient();
+  if (existing?._rowNumber) {
+    await sheets.spreadsheets.values.update({ spreadsheetId: getSpreadsheetId(), range: `${quoteSheetName("GHP Registration Closures")}!A${existing._rowNumber}:${columnLabel(headers.length)}${existing._rowNumber}`, valueInputOption: "RAW", requestBody: { values: [values] } });
+  } else {
+    await appendRow("GHP Registration Closures", values);
+  }
+  return next;
+}
+
 export async function createBannedRecord(record) {
   const date = String(record.date || "").trim() || formatDateOnly(todayDateOnly());
   const status = String(record.status || "").trim() || "Banned";

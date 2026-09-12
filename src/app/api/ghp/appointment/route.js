@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { OFFICE_INFO } from "@/lib/constants";
-import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
+import { getGHPAppointments, getGHPRegistrationClosures, updateGHPAppointment } from "@/lib/googleSheets";
 import { getGHPSeminarDates, isGHPRegistrationOpen, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
 import { sendGHPSeminarNotification } from "@/lib/sendMail";
@@ -39,7 +39,7 @@ async function reserveSeat(payload) {
 
 export async function GET() {
   try {
-    const [appointments, portalRegistration] = await Promise.all([getGHPAppointments(), getRegistrationStatus()]);
+    const [appointments, portalRegistration, closures] = await Promise.all([getGHPAppointments(), getRegistrationStatus(), getGHPRegistrationClosures()]);
     const schedules = getGHPSeminarDates().map((date) => {
       const active = appointments.filter((item) => item.seminar_date === date && !["Cancelled", "Failed", "Not yet passed"].includes(item.status));
       const sessions = SEMINAR_SESSIONS.map((session) => {
@@ -47,7 +47,11 @@ export async function GET() {
         return { ...session, capacity: SEMINAR_CAPACITY, booked, available: Math.max(SEMINAR_CAPACITY - booked, 0) };
       });
       const registrationOpen = portalRegistration.open && isGHPRegistrationOpen(date);
-      const visibleSessions = sessions.map((session) => ({ ...session, available: registrationOpen ? session.available : 0 }));
+      const dateClosed = closures.some((item) => item.seminar_date === date && item.seminar_time === "ALL" && String(item.closed).toLowerCase() === "true");
+      const visibleSessions = sessions.map((session) => {
+        const sessionClosed = dateClosed || closures.some((item) => item.seminar_date === date && item.seminar_time === session.id && String(item.closed).toLowerCase() === "true");
+        return { ...session, closed: sessionClosed, available: registrationOpen && !sessionClosed ? session.available : 0 };
+      });
       return { date, sessions: visibleSessions, available: visibleSessions.reduce((total, session) => total + session.available, 0), registrationOpen };
     });
     return NextResponse.json({ success: true, schedules, registration: portalRegistration });
@@ -76,6 +80,9 @@ export async function POST(request) {
     }
     if (!isGHPSeminarDate(seminarDate)) return NextResponse.json({ success: false, error: "Please choose an available scheduled seminar date." }, { status: 400 });
     if (!isGHPRegistrationOpen(seminarDate)) return NextResponse.json({ success: false, error: "Online registration for this Friday seminar closed at 7:00 AM. Please contact NMIS for special cases." }, { status: 403 });
+    const closures = await getGHPRegistrationClosures();
+    const sessionClosed = closures.some((item) => item.seminar_date === seminarDate && ["ALL", seminarTime].includes(item.seminar_time) && String(item.closed).toLowerCase() === "true");
+    if (sessionClosed) return NextResponse.json({ success: false, error: "Registration is closed for the selected seminar date and time." }, { status: 403 });
     const appointment = await reserveSeat({
       appointmentId: clean(body.appointmentId, 100) || uuidv4(), name, email, contact, companyName, position, meatEstablishment, validIdFileId, validIdFileName, seminarDate, seminarTime, seminarVenue: OFFICE_INFO.address, remarks: clean(body.remarks),
     });

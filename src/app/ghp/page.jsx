@@ -544,10 +544,12 @@ export default function GHPPage() {
                     <small>
                       {session.available
                         ? `${session.available} of ${session.capacity} seats available`
-                        : "Session full"}
+                        : session.closed
+                          ? "Registration closed"
+                          : "Session full"}
                     </small>
                   </span>
-                  <b>{session.available ? "Select" : "Full"}</b>
+                  <b>{session.available ? "Select" : session.closed ? "Closed" : "Full"}</b>
                 </button>
               ))}
             </div>
