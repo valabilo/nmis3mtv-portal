@@ -5,6 +5,7 @@ import { getGHPAppointments, updateGHPAppointment } from "@/lib/googleSheets";
 import { getGHPSeminarDates, isGHPRegistrationOpen, isGHPSeminarDate, SEMINAR_CAPACITY, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { validateEmail, validateName } from "@/lib/validators";
 import { sendGHPSeminarNotification } from "@/lib/sendMail";
+import { getRegistrationStatus } from "@/lib/registrationControl";
 
 export const runtime = "nodejs";
 
@@ -38,18 +39,18 @@ async function reserveSeat(payload) {
 
 export async function GET() {
   try {
-    const appointments = await getGHPAppointments();
+    const [appointments, portalRegistration] = await Promise.all([getGHPAppointments(), getRegistrationStatus()]);
     const schedules = getGHPSeminarDates().map((date) => {
       const active = appointments.filter((item) => item.seminar_date === date && !["Cancelled", "Failed", "Not yet passed"].includes(item.status));
       const sessions = SEMINAR_SESSIONS.map((session) => {
         const booked = active.filter((item) => item.seminar_time === session.id).length;
         return { ...session, capacity: SEMINAR_CAPACITY, booked, available: Math.max(SEMINAR_CAPACITY - booked, 0) };
       });
-      const registrationOpen = isGHPRegistrationOpen(date);
+      const registrationOpen = portalRegistration.open && isGHPRegistrationOpen(date);
       const visibleSessions = sessions.map((session) => ({ ...session, available: registrationOpen ? session.available : 0 }));
       return { date, sessions: visibleSessions, available: visibleSessions.reduce((total, session) => total + session.available, 0), registrationOpen };
     });
-    return NextResponse.json({ success: true, schedules });
+    return NextResponse.json({ success: true, schedules, registration: portalRegistration });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message || "Unable to load seminar availability." }, { status: 500 });
   }
@@ -58,6 +59,8 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const portalRegistration = await getRegistrationStatus();
+    if (!portalRegistration.open) return NextResponse.json({ success: false, error: portalRegistration.message }, { status: 403 });
     const name = clean(body.name);
     const email = clean(body.email).toLowerCase();
     const contact = clean(body.contact, 80);

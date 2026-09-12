@@ -1,6 +1,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import styles from "./apply.module.css";
+import { getRegistrationStatus } from "@/lib/registrationControl";
 
 const ApplicationForm = dynamic(
   () => import("@/components/apply/ApplicationForm"),
@@ -13,8 +14,9 @@ export const metadata = {
   title: "MTV Application - MTV Portal",
 };
 
-export default function ApplyPage({ searchParams = {} }) {
+export default async function ApplyPage({ searchParams = {} }) {
   const isAmendment = Boolean(String(searchParams.amend || "").trim());
+  const registration = await getRegistrationStatus();
 
   return (
     <>
@@ -85,7 +87,12 @@ export default function ApplyPage({ searchParams = {} }) {
               </ul>
             </section>
           ) : null}
-          <ApplicationForm />
+          {registration.open ? <ApplicationForm /> : (
+            <section className={styles.closedNotice} role="status">
+              <h2>Registration is currently closed</h2>
+              <p>{registration.message}</p>
+            </section>
+          )}
         </div>
       </div>
     </>

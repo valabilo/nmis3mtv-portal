@@ -16,11 +16,13 @@ import {
   PlusIcon,
   ShieldCheckIcon,
   TruckIcon,
+  CalendarDaysIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import DataTable from "@/components/ui/DataTable";
 import StatusTag from "@/components/ui/StatusTag";
 import GHPAppointments from "@/components/dashboard/GHPAppointments";
+import RegistrationControl from "@/components/dashboard/RegistrationControl";
 import { normalise } from "@/lib/utils";
 import styles from "./DashboardHub.module.css";
 
@@ -67,6 +69,7 @@ const BANNED_STATUSES = ["Banned", "Suspended", "Revoked"];
 
 const TABS = [
   { id: "analytics", label: "Analytics", icon: ChartBarIcon },
+  { id: "registration", label: "Registration", icon: CalendarDaysIcon },
   { id: "ghp", label: "GHP Seminars", icon: DocumentTextIcon },
   { id: "accredited", label: "Accredited", icon: ShieldCheckIcon },
   { id: "banned", label: "Banned", icon: XCircleIcon },
@@ -2312,6 +2315,8 @@ export default function DashboardHub() {
         )}
 
         {activeTab === "ghp" && <GHPAppointments />}
+
+        {activeTab === "registration" && <RegistrationControl />}
 
         {activeTab === "accredited" && (
           <section className={styles.section}>

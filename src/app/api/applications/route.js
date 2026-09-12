@@ -26,6 +26,7 @@ import {
   sanitizeApplicationFields,
   validateApplicationFields,
 } from "@/lib/applicationSecurity";
+import { getRegistrationStatus } from "@/lib/registrationControl";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,9 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const siteUrl = request.nextUrl.origin;
+
+    const registration = await getRegistrationStatus();
+    if (!registration.open) return jsonError(registration.message, 403);
 
     submissionId = String(body.submissionId || "");
 

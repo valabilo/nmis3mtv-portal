@@ -222,6 +222,55 @@ export async function getBannedList() {
   return readSheet("Banned");
 }
 
+// A single, deliberately small settings row keeps registration controls
+// available across server instances and deployments.
+const REGISTRATION_SETTINGS_HEADERS = [
+  "enabled",
+  "close_at",
+  "reopen_at",
+  "message",
+  "updated_at",
+];
+const DEFAULT_REGISTRATION_SETTINGS = {
+  enabled: "true",
+  close_at: "",
+  reopen_at: "",
+  message: "Registration is currently closed. Please check back later.",
+};
+
+export async function getRegistrationSettings() {
+  await ensureHeaders("Registration Settings", REGISTRATION_SETTINGS_HEADERS);
+  const rows = await readSheet("Registration Settings");
+  return { ...DEFAULT_REGISTRATION_SETTINGS, ...(rows[0] || {}) };
+}
+
+export async function updateRegistrationSettings(settings) {
+  await ensureHeaders("Registration Settings", REGISTRATION_SETTINGS_HEADERS);
+  const { headers, rows } = await readSheetWithRowNumbers("Registration Settings");
+  const next = {
+    ...DEFAULT_REGISTRATION_SETTINGS,
+    ...(rows[0] || {}),
+    ...settings,
+    updated_at: new Date().toISOString(),
+  };
+  const values = headers.map((header) => next[header] ?? "");
+  const sheets = getSheetsClient();
+  const rowNumber = rows[0]?._rowNumber;
+
+  if (rowNumber) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: getSpreadsheetId(),
+      range: `${quoteSheetName("Registration Settings")}!A${rowNumber}:${columnLabel(headers.length)}${rowNumber}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [values] },
+    });
+  } else {
+    await appendRow("Registration Settings", values);
+  }
+
+  return next;
+}
+
 export async function createBannedRecord(record) {
   const date = String(record.date || "").trim() || formatDateOnly(todayDateOnly());
   const status = String(record.status || "").trim() || "Banned";

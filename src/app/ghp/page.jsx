@@ -84,6 +84,7 @@ export default function GHPPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [month, setMonth] = useState(null);
   const [showErrors, setShowErrors] = useState(false);
+  const [registration, setRegistration] = useState(null);
   const appointmentId = useRef("");
   const update = (field) => (event) =>
     setForm((value) => ({ ...value, [field]: event.target.value }));
@@ -119,6 +120,7 @@ export default function GHPPage() {
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error);
       setSchedules(data.schedules);
+      setRegistration(data.registration || null);
       setForm((current) =>
         data.schedules.some(
           (schedule) =>
@@ -306,7 +308,9 @@ export default function GHPPage() {
             <p className={styles.cutoffNotice}>
               Public registration is open until 7:00 AM on Friday seminar days.
             </p>
-            {submitted ? (
+            {registration && !registration.open ? (
+              <div className={styles.success} role="status">{registration.message}</div>
+            ) : submitted ? (
               <div className={styles.success}>
                 Your booking has been received for{" "}
                 <strong>

@@ -176,3 +176,6 @@
     padding: 20px 18px;
   }
 }
+.closedNotice { background:#fff4f2; border:1px solid #f4c7c1; border-radius:10px; color:#8f271c; margin-top:24px; padding:24px; }
+.closedNotice h2 { margin:0 0 7px; }
+.closedNotice p { margin:0; }
