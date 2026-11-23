@@ -185,7 +185,7 @@ export default function GHPAppointments() {
   }
 
   return <section className={styles.section}>
-    <div className={styles.heading}><div><span>GHP Certification</span><h2>Seminar attendees and exam results</h2><p>A passing score creates the certificate immediately.</p></div><div className={styles.actions}><button onClick={load} disabled={disabled}>Refresh</button><button className={styles.primary} onClick={sync} disabled={disabled}>{busy ? "Sending…" : "Send result emails"}</button></div></div>
+    <div className={styles.heading}><div><span>GHP Certification</span><h2>Seminar attendees and exam results</h2><p>A passing score creates the certificate immediately.</p></div><div className={styles.actions}><button onClick={load} disabled={disabled}>Refresh</button><button className={styles.primary} onClick={sync} disabled={disabled}>{busy ? "Syncing…" : "Sync manual results"}</button></div></div>
     {message && <div className={styles.message}>{message}</div>}
     {loading ? <div className={styles.loading}>Loading GHP seminars…</div> : dates.length ? <>
       <div className={styles.filters}>

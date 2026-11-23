@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntryNotified, updateGHPAppointment } from "@/lib/googleSheets";
+import { deleteGHPAppointment, getCertificateIssuance, getGHPAppointments, getGHPManualEntries, markGHPManualEntrySynced, updateGHPAppointment } from "@/lib/googleSheets";
 import { requestHasDashboardSession } from "@/lib/dashboardAuth";
-import { sendGHPExamResult, sendGHPLowAttendanceNotice } from "@/lib/sendMail";
+import { sendGHPLowAttendanceNotice } from "@/lib/sendMail";
 import { isGHPSeminarDate, SEMINAR_SESSIONS } from "@/lib/ghpSchedule";
 import { OFFICE_INFO } from "@/lib/constants";
 import { validateEmail, validateName } from "@/lib/validators";
@@ -73,10 +73,10 @@ export async function PATCH(request) {
     }
     if (body.action !== "sync-manual-results") return NextResponse.json({ success: false, error: "Unsupported GHP action." }, { status: 400 });
     const [appointments, entries] = await Promise.all([getGHPAppointments(), getGHPManualEntries()]);
-    let notified = 0; let skipped = 0; const errors = [];
+    let synced = 0; let skipped = 0; const errors = [];
     for (const entry of entries) {
       const result = resultFor(entry.result || entry.status || entry.exam_result);
-      if (!result || clean(entry.notification_sent_at)) continue;
+      if (!result || clean(entry.synced_at)) continue;
       const email = clean(entry.email).toLowerCase(); const appointmentId = clean(entry.appointment_id);
       const appointment = appointments.find((item) => appointmentId ? item.appointment_id === appointmentId : clean(item.email).toLowerCase() === email);
       if (!appointment) { skipped += 1; errors.push(`No appointment found for ${appointmentId || email || `Manual Entries row ${entry._rowNumber}`}.`); continue; }
@@ -86,13 +86,11 @@ export async function PATCH(request) {
         certificate_number: result === "PASSED" ? clean(entry.certificate_number || entry.cert_number) : "",
       });
       try {
-        await sendGHPExamResult(record);
-        await markGHPManualEntryNotified(entry._rowNumber);
-        await updateGHPAppointment(appointment.appointment_id, { result_notification_sent_at: new Date().toISOString() });
-        notified += 1;
-      } catch (error) { errors.push(`${record.name}: ${error.message || "email could not be sent"}`); }
+        await markGHPManualEntrySynced(entry._rowNumber);
+        synced += 1;
+      } catch (error) { errors.push(`${record.name}: ${error.message || "manual result could not be marked as synced"}`); }
     }
-    return NextResponse.json({ success: true, notified, skipped, message: notified ? `${notified} examination result email${notified === 1 ? "" : "s"} sent.` : "No new manual examination results to notify.", errors });
+    return NextResponse.json({ success: true, synced, skipped, message: synced ? `${synced} manual examination result${synced === 1 ? "" : "s"} synced. No emails were sent.` : "No new manual examination results to sync. No emails were sent.", errors });
   } catch (error) {
     console.error("GHP manual result sync error:", error);
     return NextResponse.json({ success: false, error: error.message || "GHP result sync failed." }, { status: 500 });

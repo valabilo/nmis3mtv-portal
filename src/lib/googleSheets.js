@@ -476,6 +476,7 @@ const GHP_MANUAL_ENTRY_HEADERS = [
   "certificate_number",
   "exam_date",
   "notification_sent_at",
+  "synced_at",
 ];
 
 export async function getGHPManualEntries() {
@@ -505,13 +506,13 @@ export async function saveGHPManualEntry(data) {
   return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
 }
 
-export async function markGHPManualEntryNotified(rowNumber) {
+export async function markGHPManualEntrySynced(rowNumber) {
   await ensureHeaders("Manual Entries", GHP_MANUAL_ENTRY_HEADERS);
   const { headers, rows } = await readSheetWithRowNumbers("Manual Entries");
   const record = rows.find((row) => row._rowNumber === rowNumber);
   if (!record) throw new Error("Manual exam entry not found.");
   const values = headers.map((header) =>
-    header === "notification_sent_at" ? new Date().toISOString() : (record[header] ?? ""),
+    header === "synced_at" ? new Date().toISOString() : (record[header] ?? ""),
   );
   const sheets = getSheetsClient();
   await sheets.spreadsheets.values.update({

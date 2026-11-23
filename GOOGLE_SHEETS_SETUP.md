@@ -6,11 +6,11 @@ This guide includes legacy quiz setup. The current GHP seminar flow uses the `GH
 
 Clients select an available seminar date and one of four sessions in the portal. Each session has 30 seats. After the seminar, record each examination result in a `Manual Entries` tab using these headers:
 
-| appointment_id | email | result | score | certificate_number | exam_date | notification_sent_at |
+| appointment_id | email | result | score | certificate_number | exam_date | notification_sent_at | synced_at |
 | --- | --- | --- | --- | --- | --- | --- |
-| Appointment ID from GHP_Appointments (recommended) | Client email | PASSED or FAILED | Optional score | Required for a passing certificate | Optional | Filled automatically after email is sent |
+| Appointment ID from GHP_Appointments (recommended) | Client email | PASSED or FAILED | Optional score | Required for a passing certificate | Optional | Legacy email-tracking field; ignored by the current sync |
 
-In the dashboard, open **GHP Seminars** and select **Send manual result emails**. This sends pass/fail notices only for rows without `notification_sent_at`. Passing certificates can be downloaded by the administrator; no certificate email is sent.
+In the dashboard, open **GHP Seminars** and select **Sync manual results**. This updates the matching seminar records and certificate data without sending email. The portal fills `synced_at` after a row is processed. Passing certificates can be downloaded by the administrator; no certificate email is sent.
 
 ### Certificate template downloads
 

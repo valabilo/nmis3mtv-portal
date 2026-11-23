@@ -50,7 +50,7 @@ The portal uses free Google services:
 | ----------------- | -------------------------------------------------------------------------------------- |
 | Google Sheets API | Accredited, banned, applications, GHP completions, contact messages, and downloadables |
 | Google Drive API  | Uploaded application documents and admin-managed downloadable PDFs                     |
-| Gmail SMTP        | Application acknowledgements, GHP certificates, and contact notifications              |
+| Gmail SMTP        | Application acknowledgements, GHP seminar notices, and contact notifications |
 
 ### OAuth
 
